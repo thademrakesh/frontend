@@ -46,12 +46,18 @@ export default function VotePage() {
   if (state.isLoading)
     return <FullScreenMessage title="Connecting to Election Authority..." />;
   if (state.status === "draft")
-    return <FullScreenMessage title="Election has not started yet." />;
+    return (
+      <FullScreenMessage
+        title="Election has not started yet."
+        showLogin={true}
+      />
+    );
   if (state.status === "closed")
     return (
       <FullScreenMessage
         title="Election has ended."
         sub="Thank you for participating. Results are now available to the administration."
+        showLogin={true}
       />
     );
   if (state.emergencyLock)
@@ -686,10 +692,12 @@ function FullScreenMessage({
   title,
   sub,
   icon,
+  showLogin = false,
 }: {
   title: string;
   sub?: string;
   icon?: React.ReactNode;
+  showLogin?: boolean;
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-ink px-6 text-ink-foreground">
@@ -697,12 +705,25 @@ function FullScreenMessage({
         {icon && <div className="mx-auto mb-6 flex justify-center">{icon}</div>}
         <h1 className="text-3xl font-extrabold tracking-tight">{title}</h1>
         {sub && <p className="mt-3 text-sm text-white/60">{sub}</p>}
-        <Link
-          to="/"
-          className="mt-8 inline-block font-mono text-[10px] uppercase tracking-widest text-white/60 hover:text-white"
-        >
-          ← Back to home
-        </Link>
+        <div className="mt-8 flex items-center justify-center gap-6">
+          <Link
+            to="/"
+            className="font-mono text-[10px] uppercase tracking-widest text-white/60 hover:text-white"
+          >
+            ← Back to home
+          </Link>
+          {showLogin && (
+            <>
+              <span className="size-1 rounded-full bg-white/20" />
+              <Link
+                to="/login"
+                className="font-mono text-[10px] uppercase tracking-widest text-white/60 hover:text-white"
+              >
+                Login →
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
