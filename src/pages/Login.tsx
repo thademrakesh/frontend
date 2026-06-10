@@ -1,20 +1,21 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Shield, UserCog, Lock, Mail, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Toaster } from "@/components/ui/sonner";
-
-export const Route = createFileRoute("/login")({
-  component: LoginPage,
-});
-
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { authApi } from "@/lib/api";
 
-function LoginPage() {
+export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,15 +39,18 @@ function LoginPage() {
       toast.success("Login successful");
 
       if (data.role === "ADMIN") {
-        navigate({ to: "/admin" });
+        navigate("/admin");
       } else if (data.role === "STAFF") {
-        navigate({ to: "/staff" });
+        navigate("/staff");
       } else {
-        navigate({ to: "/vote" });
+        navigate("/vote");
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      const message = error.response?.data?.error || error.response?.data?.message || "Login failed";
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Login failed";
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -55,7 +59,6 @@ function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Toaster />
       <Card className="w-full max-w-md border-border bg-card">
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-4">
@@ -63,7 +66,9 @@ function LoginPage() {
               <Lock className="size-6" />
             </div>
           </div>
-          <CardTitle className="text-2xl text-center font-bold tracking-tight">Portal Login</CardTitle>
+          <CardTitle className="text-2xl text-center font-bold tracking-tight">
+            Portal Login
+          </CardTitle>
           <CardDescription className="text-center">
             Enter your credentials to access the management portal
           </CardDescription>
@@ -99,17 +104,21 @@ function LoginPage() {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-3 size-4 text-muted-foreground hover:text-foreground focus:outline-none"
                   onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-muted-foreground hover:text-foreground"
                 >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
                 </button>
               </div>
             </div>
           </CardContent>
           <CardFooter>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
+              {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </CardFooter>
         </form>

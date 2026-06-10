@@ -121,18 +121,30 @@
 }
 
 @keyframes ballot-drop {
-  0% { transform: translateY(-16px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
+  0% {
+    transform: translateY(-16px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
-.animate-ballot { animation: ballot-drop 0.45s cubic-bezier(0.32, 0.72, 0, 1) both; }
+.animate-ballot {
+  animation: ballot-drop 0.45s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
 
 @layer base {
-  * { border-color: var(--color-border); }
+  * {
+    border-color: var(--color-border);
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-display);
     font-feature-settings: "ss01", "cv11";
   }
-  .font-mono { font-family: var(--font-mono); }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
 }

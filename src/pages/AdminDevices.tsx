@@ -1,7 +1,7 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminShell, SectionHeader } from "@/components/election/Shell";
 import { useElection } from "@/lib/election-store";
-import { useEffect } from "react";
 
 const ADMIN_NAV = [
   { to: "/admin", label: "Control Panel" },
@@ -9,49 +9,25 @@ const ADMIN_NAV = [
   { to: "/admin/devices", label: "Devices" },
 ];
 
-export const Route = createFileRoute("/admin/devices")({
-  beforeLoad: ({ location }) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      const role = localStorage.getItem("role");
-      if (!token || role !== "ADMIN") {
-        throw redirect({ 
-          to: "/login",
-          search: {
-            redirect: location.href,
-          },
-        });
-      }
-    }
-  },
-  head: () => ({
-    meta: [
-      { title: "Devices — Gentanjali school voting" },
-      { name: "description", content: "Voting kiosk monitoring." },
-    ],
-  }),
-  component: DevicesPage,
-});
-
-function DevicesPage() {
+export default function DevicesPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
     if (!token || role !== "ADMIN") {
-      navigate({ to: "/login" });
+      navigate("/login");
     }
   }, [navigate]);
 
   const state = useElection((s) => s);
 
   const deviceVotes = (id: string) => {
-    // If we don't have per-device vote counts from backend yet, 
+    // If we don't have per-device vote counts from backend yet,
     // we might need to add that to the API or just show 0 for now.
-    // The current backend doesn't seem to expose vote count per device in a simple way 
+    // The current backend doesn't seem to expose vote count per device in a simple way
     // without fetching all votes.
-    return 0; 
+    return 0;
   };
 
   return (
@@ -92,13 +68,20 @@ function DevicesPage() {
                     ? "text-accent"
                     : "text-muted-foreground";
               return (
-                <tr key={d.id} className="border-b border-border last:border-b-0">
+                <tr
+                  key={d.id}
+                  className="border-b border-border last:border-b-0"
+                >
                   <td className="px-6 py-4 font-bold">{d.name}</td>
                   <td className="px-6 py-4 font-mono text-xs text-muted-foreground">
                     {d.id}
                   </td>
-                  <td className="px-6 py-4 text-xs text-muted-foreground">{d.lastSeen}</td>
-                  <td className="px-6 py-4 text-right font-mono">{deviceVotes(d.id)}</td>
+                  <td className="px-6 py-4 text-xs text-muted-foreground">
+                    {d.lastSeen}
+                  </td>
+                  <td className="px-6 py-4 text-right font-mono">
+                    {deviceVotes(d.id)}
+                  </td>
                   <td
                     className={`px-6 py-4 text-right font-bold uppercase tracking-widest ${colorClass}`}
                   >

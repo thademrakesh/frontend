@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8080/api/v1";
+const API_BASE_URL ="https://guru-anvil-anger.ngrok-free.dev/api/v1";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,7 +11,7 @@ api.interceptors.request.use((config) => {
 
   const token = localStorage.getItem("token");
   const isLoginRequest = config.url?.includes("/auth/login");
-  
+
   if (token && !isLoginRequest) {
     config.headers.Authorization = `Bearer ${token}`;
     console.log("Adding token to request:", config.url);
@@ -20,13 +20,28 @@ api.interceptors.request.use((config) => {
     // Explicitly remove Authorization header if it somehow got there
     delete config.headers.Authorization;
   }
+
+  // ngrok bypass header
+  config.headers["ngrok-skip-browser-warning"] = "true";
+
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`API SUCCESS [${response.config.url}]:`, response.data);
+    return response;
+  },
   (error) => {
-    if (error.response?.status === 401 && !error.config.url?.includes("/auth/login")) {
+    console.error(
+      `API ERROR [${error.config?.url}]:`,
+      error.response?.status,
+      error.response?.data || error.message,
+    );
+    if (
+      error.response?.status === 401 &&
+      !error.config.url?.includes("/auth/login")
+    ) {
       console.log("Session expired or invalid - logging out");
       if (typeof window !== "undefined") {
         localStorage.clear(); // Clear everything for safety
@@ -100,7 +115,10 @@ export const deviceApi = {
     return response.data;
   },
   register: async (deviceId: string, deviceName: string) => {
-    const response = await api.post("/devices/register", { deviceId, deviceName });
+    const response = await api.post("/devices/register", {
+      deviceId,
+      deviceName,
+    });
     return response.data;
   },
   lockAll: async () => {

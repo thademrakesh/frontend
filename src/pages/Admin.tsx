@@ -1,5 +1,5 @@
-import { createFileRoute, Link, redirect, useNavigate, Outlet, useRouterState } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -23,11 +23,11 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Toaster } from "@/components/ui/sonner";
 import {
   electionStore,
   useElection,
   type Candidate,
+  type Position,
 } from "@/lib/election-store";
 
 const ADMIN_NAV = [
@@ -36,35 +36,10 @@ const ADMIN_NAV = [
   { to: "/admin/devices", label: "Devices" },
 ];
 
-export const Route = createFileRoute("/admin")({
-  beforeLoad: ({ location }) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      const role = localStorage.getItem("role");
-      
-      if (!token || role !== "ADMIN") {
-        console.warn("ADMIN ACCESS DENIED: Redirecting to login", { hasToken: !!token, role });
-        throw redirect({ 
-          to: "/login",
-          search: {
-            redirect: location.href,
-          },
-        });
-      }
-    }
-  },
-  head: () => ({
-    meta: [
-      { title: "Administration — Gentanjali school voting" },
-      { name: "description", content: "Election control panel and candidate verification." },
-    ],
-  }),
-  component: AdminPage,
-});
-
-function AdminPage() {
+export default function AdminPage() {
   const navigate = useNavigate();
-  const { pathname } = useRouterState({ select: (s) => s.location });
+  const location = useLocation();
+  const pathname = location.pathname;
   const isIndex = pathname === "/admin";
 
   // Secondary safety check
@@ -72,16 +47,16 @@ function AdminPage() {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
     if (!token || role !== "ADMIN") {
-      navigate({ to: "/login" });
+      navigate("/login");
     }
   }, [navigate]);
 
   const state = useElection((s) => s);
   const [positionFilter, setPositionFilter] = useState<string>("all");
-  const [modal, setModal] = useState<
-    | { kind: "reject" | "terminate"; candidate: Candidate }
-    | null
-  >(null);
+  const [modal, setModal] = useState<{
+    kind: "reject" | "terminate";
+    candidate: Candidate;
+  } | null>(null);
   const [reason, setReason] = useState("");
   const [manualCode, setManualCode] = useState("");
 
@@ -122,13 +97,8 @@ function AdminPage() {
     );
   }
 
-  if (!isIndex) {
-    return <Outlet />;
-  }
-
   return (
     <AdminShell role="Administration" nav={ADMIN_NAV}>
-      <Toaster />
       <SectionHeader
         eyebrow={state.academicYear}
         title={state.electionName}
@@ -148,7 +118,9 @@ function AdminPage() {
           <Card title="Election Lifecycle">
             <p className="mb-4 text-xs text-muted-foreground">
               Current status:{" "}
-              <strong className="uppercase text-foreground">{state.status}</strong>
+              <strong className="uppercase text-foreground">
+                {state.status}
+              </strong>
             </p>
             <div className="flex flex-col gap-3">
               {state.status !== "active" ? (
@@ -167,19 +139,19 @@ function AdminPage() {
                 </Button>
               ) : (
                 <Button
-                variant="destructive"
-                onClick={async () => {
-                  try {
-                    await electionStore.stopElection();
-                    toast("Election closed — results unlocked");
-                  } catch (error) {
-                    toast.error("Failed to stop election");
-                  }
-                }}
-                className="w-full font-bold uppercase tracking-widest"
-              >
-                Stop Election
-              </Button>
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await electionStore.stopElection();
+                      toast("Election closed — results unlocked");
+                    } catch (error) {
+                      toast.error("Failed to stop election");
+                    }
+                  }}
+                  className="w-full font-bold uppercase tracking-widest"
+                >
+                  Stop Election
+                </Button>
               )}
             </div>
           </Card>
@@ -214,7 +186,9 @@ function AdminPage() {
             <div className="mb-4 flex gap-2">
               <Input
                 value={manualCode}
-                onChange={(e) => setManualCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onChange={(e) =>
+                  setManualCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
                 placeholder="Enter 6 digits"
                 inputMode="numeric"
                 className="font-mono tracking-widest"
@@ -251,7 +225,9 @@ function AdminPage() {
                 onCheckedChange={async (v) => {
                   try {
                     await electionStore.setCodeProtection(v);
-                    toast.success(`Code protection ${v ? "enabled" : "disabled"}`);
+                    toast.success(
+                      `Code protection ${v ? "enabled" : "disabled"}`,
+                    );
                   } catch (error) {
                     toast.error("Failed to toggle code protection");
                   }
@@ -277,7 +253,9 @@ function AdminPage() {
                 variant="destructive"
                 onClick={async () => {
                   await electionStore.setEmergencyLock(true);
-                  toast("All voting devices locked", { icon: <Lock className="size-4" /> });
+                  toast("All voting devices locked", {
+                    icon: <Lock className="size-4" />,
+                  });
                 }}
                 className="w-full font-bold uppercase tracking-widest"
               >
@@ -285,13 +263,23 @@ function AdminPage() {
               </Button>
             )}
             <p className="mt-3 text-[10px] text-muted-foreground">
-              Immediately returns all kiosks to the code-entry screen and destroys in-flight
-              sessions.
+              Immediately returns all kiosks to the code-entry screen and
+              destroys in-flight sessions.
             </p>
           </Card>
 
           {/* Device summary */}
-          <Card title="Device Monitoring" right={<Link to="/admin/devices" className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline">View all</Link>}>
+          <Card
+            title="Device Monitoring"
+            right={
+              <Link
+                to="/admin/devices"
+                className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline"
+              >
+                View all
+              </Link>
+            }
+          >
             <ul className="space-y-2">
               {state.devices.slice(0, 4).map((d) => (
                 <li
@@ -300,9 +288,13 @@ function AdminPage() {
                 >
                   <div>
                     <p className="font-mono">{d.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{d.lastSeen}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {d.lastSeen}
+                    </p>
                   </div>
-                  <DeviceStatusPill status={state.emergencyLock ? "locked" : d.status} />
+                  <DeviceStatusPill
+                    status={state.emergencyLock ? "locked" : d.status}
+                  />
                 </li>
               ))}
             </ul>
@@ -318,7 +310,9 @@ function AdminPage() {
               label={`All · ${state.candidates.length}`}
             />
             {state.positions.map((p) => {
-              const count = state.candidates.filter((c) => c.positionId === p.id).length;
+              const count = state.candidates.filter(
+                (c) => c.positionId === p.id,
+              ).length;
               return (
                 <FilterPill
                   key={p.id}
@@ -365,7 +359,9 @@ function AdminPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="size-4 text-accent" />
-              {modal?.kind === "reject" ? "Reject candidate" : "Terminate candidate"}
+              {modal?.kind === "reject"
+                ? "Reject candidate"
+                : "Terminate candidate"}
             </DialogTitle>
             <DialogDescription>
               {modal?.kind === "reject"
@@ -495,7 +491,8 @@ function CandidateCard({
   onTerminate: () => void;
   positions: Position[];
 }) {
-  const positionName = positions.find((p) => p.id === candidate.positionId)?.name ?? "";
+  const positionName =
+    positions.find((p) => p.id === candidate.positionId)?.name ?? "";
   const statusStyles: Record<string, string> = {
     approved: "border-success/40 bg-success/5",
     rejected: "border-accent/30 bg-accent/5 opacity-80",
@@ -510,7 +507,11 @@ function CandidateCard({
       <div className="flex gap-4 p-4">
         <div className="size-24 shrink-0 overflow-hidden rounded-sm border border-border bg-secondary">
           {candidate.photo ? (
-            <img src={candidate.photo} alt={candidate.name} className="h-full w-full object-cover" />
+            <img
+              src={candidate.photo}
+              alt={candidate.name}
+              className="h-full w-full object-cover"
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-muted-foreground">
               {candidate.name
@@ -533,7 +534,11 @@ function CandidateCard({
           <h3 className="truncate text-lg font-bold">{candidate.name}</h3>
           <div className="flex items-center gap-2">
             {candidate.symbol && (
-              <img src={candidate.symbol} alt={candidate.symbolName} className="size-5 object-contain" />
+              <img
+                src={candidate.symbol}
+                alt={candidate.symbolName}
+                className="size-5 object-contain"
+              />
             )}
             <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
               {candidate.symbolName}
@@ -605,13 +610,15 @@ function CandidateCard({
   );
 }
 
-function DeviceStatusPill({ status }: { status: "active" | "idle" | "locked" }) {
+function DeviceStatusPill({
+  status,
+}: {
+  status: "active" | "idle" | "locked";
+}) {
   const map = {
     active: "text-success",
     idle: "text-muted-foreground",
     locked: "text-accent",
   };
-  return (
-    <span className={`font-bold uppercase ${map[status]}`}>{status}</span>
-  );
+  return <span className={`font-bold uppercase ${map[status]}`}>{status}</span>;
 }

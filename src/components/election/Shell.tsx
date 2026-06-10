@@ -1,4 +1,4 @@
-import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { type ReactNode } from "react";
 import { useElection } from "@/lib/election-store";
 import { LogOut } from "lucide-react";
@@ -16,12 +16,13 @@ export function AdminShell({
   role: "Staff" | "Administration";
 }) {
   const status = useElection((s) => s.status);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const location = useLocation();
+  const pathname = location.pathname;
   const navigate = useNavigate();
 
   const handleLogout = () => {
     localStorage.clear(); // Clear all auth data
-    navigate({ to: "/login" });
+    navigate("/login");
   };
 
   return (
@@ -85,11 +86,27 @@ export function AdminShell({
   );
 }
 
-export function StatusPill({ status }: { status: "draft" | "active" | "closed" }) {
+export function StatusPill({
+  status,
+}: {
+  status: "draft" | "active" | "closed";
+}) {
   const map = {
-    active: { dot: "bg-success", bg: "bg-success/10 text-success", label: "Election Active" },
-    closed: { dot: "bg-accent", bg: "bg-accent/10 text-accent", label: "Election Closed" },
-    draft: { dot: "bg-muted-foreground", bg: "bg-secondary text-muted-foreground", label: "Draft" },
+    active: {
+      dot: "bg-success",
+      bg: "bg-success/10 text-success",
+      label: "Election Active",
+    },
+    closed: {
+      dot: "bg-accent",
+      bg: "bg-accent/10 text-accent",
+      label: "Election Closed",
+    },
+    draft: {
+      dot: "bg-muted-foreground",
+      bg: "bg-secondary text-muted-foreground",
+      label: "Draft",
+    },
   } as const;
   const v = map[status];
   return (

@@ -1,6 +1,6 @@
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Trophy } from "lucide-react";
-import { useEffect } from "react";
 import {
   Bar,
   BarChart,
@@ -23,30 +23,6 @@ const ADMIN_NAV = [
   { to: "/admin/devices", label: "Devices" },
 ];
 
-export const Route = createFileRoute("/admin/results")({
-  beforeLoad: ({ location }) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      const role = localStorage.getItem("role");
-      if (!token || role !== "ADMIN") {
-        throw redirect({ 
-          to: "/login",
-          search: {
-            redirect: location.href,
-          },
-        });
-      }
-    }
-  },
-  head: () => ({
-    meta: [
-      { title: "Results — Gentanjali school voting" },
-      { name: "description", content: "Election results dashboard." },
-    ],
-  }),
-  component: ResultsPage,
-});
-
 const CHART_COLORS = [
   "var(--chart-1)",
   "var(--chart-2)",
@@ -55,14 +31,14 @@ const CHART_COLORS = [
   "var(--chart-5)",
 ];
 
-function ResultsPage() {
+export default function ResultsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
     if (!token || role !== "ADMIN") {
-      navigate({ to: "/login" });
+      navigate("/login");
     }
   }, [navigate]);
 
@@ -78,7 +54,8 @@ function ResultsPage() {
     candidates: state.stats.totalCandidates,
     approved: state.candidates.filter((c) => c.status === "approved").length,
     rejected: state.candidates.filter((c) => c.status === "rejected").length,
-    terminated: state.candidates.filter((c) => c.status === "terminated").length,
+    terminated: state.candidates.filter((c) => c.status === "terminated")
+      .length,
     votes: state.stats.totalVotes,
     devices: state.stats.activeDevices,
   };
@@ -107,8 +84,8 @@ function ResultsPage() {
 
       {locked && (
         <div className="mb-8 rounded-sm border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
-          <strong className="uppercase">Live preview.</strong> Final results lock when the
-          administrator stops the election.
+          <strong className="uppercase">Live preview.</strong> Final results
+          lock when the administrator stops the election.
         </div>
       )}
 
@@ -155,16 +132,21 @@ function ResultsPage() {
             <ResponsiveContainer>
               <PieChart>
                 <Pie
-                  data={positionStats[0]?.candidates.map((c) => ({
-                    name: c.candidate.name,
-                    value: c.votes || 0.001,
-                  })) || []}
+                  data={
+                    positionStats[0]?.candidates.map((c) => ({
+                      name: c.candidate.name,
+                      value: c.votes || 0.001,
+                    })) || []
+                  }
                   dataKey="value"
                   innerRadius={50}
                   outerRadius={90}
                 >
                   {positionStats[0]?.candidates.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    <Cell
+                      key={i}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
                   )) || null}
                 </Pie>
                 <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -186,7 +168,9 @@ function ResultsPage() {
                 <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
                   Position
                 </p>
-                <h3 className="text-lg font-bold tracking-tight">{position.name}</h3>
+                <h3 className="text-lg font-bold tracking-tight">
+                  {position.name}
+                </h3>
               </div>
               <span className="font-mono text-xs text-muted-foreground">
                 {total} {total === 1 ? "vote" : "votes"}
@@ -226,14 +210,16 @@ function ResultsPage() {
 
                     <div className="flex-1">
                       <div className="mb-2 flex items-center gap-3">
-                        <span className="text-base font-bold">{row.candidate.name}</span>
+                        <span className="text-base font-bold">
+                          {row.candidate.name}
+                        </span>
                         {i === 0 && row.votes > 0 && (
                           <span className="flex items-center gap-1 rounded bg-warning/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-warning-foreground/80">
                             <Trophy className="size-3" /> Winner
                           </span>
                         )}
                       </div>
-                      
+
                       <div className="mb-3 flex items-center gap-2">
                         {row.candidate.symbol && (
                           <img
@@ -250,7 +236,9 @@ function ResultsPage() {
                       <div className="h-2 overflow-hidden rounded-full bg-secondary">
                         <div
                           className={`h-full transition-all duration-500 ${
-                            i === 0 && row.votes > 0 ? "bg-success" : "bg-primary/70"
+                            i === 0 && row.votes > 0
+                              ? "bg-success"
+                              : "bg-primary/70"
                           }`}
                           style={{ width: `${row.percent}%` }}
                         />
@@ -303,7 +291,9 @@ function KPI({
       <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
         {label}
       </p>
-      <p className={`mt-2 font-mono text-3xl font-bold ${toneClass}`}>{value}</p>
+      <p className={`mt-2 font-mono text-3xl font-bold ${toneClass}`}>
+        {value}
+      </p>
     </div>
   );
 }
