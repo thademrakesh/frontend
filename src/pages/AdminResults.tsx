@@ -15,7 +15,7 @@ import {
   YAxis,
 } from "recharts";
 import { AdminShell, SectionHeader } from "@/components/election/Shell";
-import { useElection, tallyForPosition } from "@/lib/election-store";
+import { useElection, tallyForPosition, electionStore } from "@/lib/election-store";
 
 const ADMIN_NAV = [
   { to: "/admin", label: "Control Panel" },
@@ -39,6 +39,9 @@ export default function ResultsPage() {
     const role = localStorage.getItem("role");
     if (!token || role !== "ADMIN") {
       navigate("/login");
+    } else {
+      // Fetch results specifically when visiting results page
+      electionStore.refresh(false, true);
     }
   }, [navigate]);
 

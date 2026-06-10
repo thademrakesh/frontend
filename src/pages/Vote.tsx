@@ -14,8 +14,9 @@ import {
   getOrCreateDeviceId,
   useElection,
   type Candidate,
+  type ElectionStatus,
 } from "@/lib/election-store";
-import { accessCodeApi, deviceApi } from "@/lib/api";
+import { accessCodeApi, deviceApi, electionApi } from "@/lib/api";
 
 type Phase = "code" | "voting" | "review" | "thanks";
 
@@ -33,17 +34,77 @@ function shuffle<T>(arr: T[]): T[] {
 export default function VotePage() {
   const state = useElection((s) => s);
   const deviceId = useMemo(() => getOrCreateDeviceId(), []);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
 
   useEffect(() => {
-    electionStore.refresh();
-    // Register device explicitly
+    let active = true;
+
+    // 1. Set up timeout so we never get stuck
+    const timeout = setTimeout(() => {
+      if (active) {
+        console.warn("Initial check timed out - forcing continue");
+        setInitialCheckDone(true);
+      }
+    }, 6000); // 6 second timeout
+
+    const fastInitialCheck = async () => {
+      console.log("Starting fast initial check...");
+      
+      // Direct API calls to avoid store overhead
+      try {
+        const [electionRes, codeStatusRes] = await Promise.all([
+          electionApi.getActiveElection().catch(() => null),
+          accessCodeApi.getStatus().catch(() => null),
+        ]);
+
+        console.log("Initial check results:", { electionRes, codeStatusRes });
+
+        if (!active) return;
+
+        // Update store with minimal data
+        electionStore.updateState((s) => ({
+          ...s,
+          electionId: electionRes?.electionId,
+          electionName:
+            electionRes?.electionName ||
+            (electionRes?.electionId ? s.electionName : "No Active Election"),
+          academicYear: electionRes?.academicYear || s.academicYear,
+          status: (electionRes?.status?.toLowerCase() as ElectionStatus) || "draft",
+          codeProtection: codeStatusRes?.codeRequired ?? true,
+          isLoading: false,
+        }));
+
+        setInitialCheckDone(true);
+        clearTimeout(timeout);
+
+        // If no code protection, load full data now
+        if (electionRes?.status?.toLowerCase() === "active" && !codeStatusRes?.codeRequired) {
+          await electionStore.refresh(true);
+        }
+      } catch (err) {
+        console.error("Initial check failed:", err);
+        if (!active) return;
+        electionStore.updateState((s) => ({ ...s, isLoading: false }));
+        setInitialCheckDone(true);
+        clearTimeout(timeout);
+      }
+    };
+
+    fastInitialCheck();
+
+    // Register device
     deviceApi.register(deviceId, `Kiosk ${deviceId.slice(-4)}`).catch((err) => {
       console.warn("Failed to register device, but will try to proceed:", err);
     });
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+    };
   }, [deviceId]);
 
   // Election-level gates
-  if (state.isLoading)
+  if (!initialCheckDone || state.isLoading)
     return <FullScreenMessage title="Connecting to Election Authority..." />;
   if (state.status === "draft")
     return (
@@ -142,22 +203,22 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
     }
   }
 
-  function verifyCode() {
+  async function verifyCode() {
     // If the access code is not loaded in state (e.g. for public user),
     // we should verify it via backend API
-    accessCodeApi
-      .verify(codeInput)
-      .then((res) => {
-        if (res.valid) {
-          setPhase("voting");
-          setCodeError(null);
-        } else {
-          setCodeError("Invalid Code. Please contact the election staff.");
-        }
-      })
-      .catch(() => {
-        setCodeError("Error verifying code. Please try again.");
-      });
+    try {
+      const res = await accessCodeApi.verify(codeInput);
+      if (res.valid) {
+        // Load full data (candidates, positions) before switching to voting phase
+        await electionStore.refresh(true);
+        setPhase("voting");
+        setCodeError(null);
+      } else {
+        setCodeError("Invalid Code. Please contact the election staff.");
+      }
+    } catch (error) {
+      setCodeError("Error verifying code. Please try again.");
+    }
   }
 
   function toggleSelection(candidateId: string) {

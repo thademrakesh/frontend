@@ -123,6 +123,27 @@ function emptyState(): ElectionState {
   };
 }
 
+function mapCandidate(c: any): Candidate {
+  return {
+    id: c.candidateId,
+    studentId: c.studentId,
+    name: c.name,
+    className: c.className,
+    section: c.section,
+    photo: c.photo,
+    symbolName: c.symbolName,
+    symbol: c.symbol,
+    manifesto: c.manifesto,
+    positionId: c.positionId,
+    status:
+      c.approvalStatus
+        ?.toLowerCase()
+        ?.replace("pending_approval", "pending") || "pending",
+    reason: c.rejectionReason || c.terminationReason,
+    createdBy: c.createdBy,
+  };
+}
+
 let state: ElectionState = emptyState();
 const listeners = new Set<() => void>();
 
@@ -137,8 +158,10 @@ export const electionStore = {
     listeners.add(cb);
     return () => listeners.delete(cb);
   },
+  updateState: setState, // Export the updater for direct use
 
-  async refresh(full = false) {
+
+  async refresh(full = false, includeResults = false, minimal = false) {
     // Initial load always shows loading spinner
     const isInitialLoad =
       state.isLoading && state.electionName === "Loading Election...";
@@ -151,22 +174,46 @@ export const electionStore = {
         typeof window !== "undefined" &&
         localStorage.getItem("role") === "ADMIN";
 
+      // If minimal is true, we only care about election status and code protection
+      if (minimal && !isAdmin) {
+        const [election, codeStatus] = await Promise.all([
+          electionApi.getActiveElection().catch(() => null),
+          accessCodeApi.getStatus().catch(() => null),
+        ]);
+
+        setState((s) => ({
+          ...s,
+          electionId: election?.electionId || s.electionId,
+          electionName:
+            election?.electionName ||
+            (election?.electionId ? s.electionName : "No Active Election"),
+          academicYear: election?.academicYear || s.academicYear,
+          status: (election?.status?.toLowerCase() as ElectionStatus) || s.status,
+          codeProtection: codeStatus?.codeRequired ?? s.codeProtection,
+          isLoading: false,
+        }));
+        return;
+      }
+
       // Parallelize everything
       const requests: Promise<any>[] = [
         electionApi.getActiveElection().catch(() => null),
         positionApi.getAll().catch(() => []),
       ];
 
-      // Only fetch candidates and results if we need them or on full refresh
+      // Only fetch candidates if we need them or on full refresh
       if (full || isInitialLoad || state.candidates.length === 0) {
         requests.push(candidateApi.getAll().catch(() => []));
       } else {
         requests.push(Promise.resolve(null)); // Keep array indices consistent
       }
 
-      requests.push(resultApi.getResults().catch(() => []));
+      let results: any[] = [];
+      if (isAdmin || includeResults) {
+        results = await resultApi.getResults().catch(() => []);
+      }
 
-      const [election, positions, candidates, results] =
+      const [election, positions, candidates] =
         await Promise.all(requests);
 
       let devices: any[] = [];
@@ -189,28 +236,11 @@ export const electionStore = {
         electionId: election?.electionId || s.electionId,
         electionName:
           election?.electionName ||
-          (s.electionId ? s.electionName : "No Active Election"),
+          (election?.electionId ? s.electionName : "No Active Election"),
         academicYear: election?.academicYear || s.academicYear,
         status: (election?.status?.toLowerCase() as ElectionStatus) || s.status,
         candidates: candidates
-          ? (candidates || []).map((c: any) => ({
-              id: c.candidateId,
-              studentId: c.studentId,
-              name: c.name,
-              className: c.className,
-              section: c.section,
-              photo: c.photo,
-              symbolName: c.symbolName,
-              symbol: c.symbol,
-              manifesto: c.manifesto,
-              positionId: c.positionId,
-              status:
-                c.approvalStatus
-                  ?.toLowerCase()
-                  ?.replace("pending_approval", "pending") || "pending",
-              reason: c.rejectionReason || c.terminationReason,
-              createdBy: c.createdBy,
-            }))
+          ? (candidates || []).map(mapCandidate)
           : s.candidates,
         positions: (positions || []).map((p: any) => ({
           id: p.positionId,
@@ -246,12 +276,15 @@ export const electionStore = {
         typeof window !== "undefined"
           ? localStorage.getItem("username")
           : "staff";
-      await candidateApi.create({
+      const res = await candidateApi.create({
         ...c,
         approvalStatus: "PENDING_APPROVAL",
         createdBy: username || "staff",
       });
-      this.refresh();
+      setState((s) => ({
+        ...s,
+        candidates: [...s.candidates, mapCandidate(res)],
+      }));
     } catch (error) {
       console.error("Failed to add candidate:", error);
       throw error;
@@ -273,15 +306,22 @@ export const electionStore = {
     }));
 
     try {
+      let res;
       if (status === "approved") {
-        await candidateApi.approve(id);
+        res = await candidateApi.approve(id);
       } else if (status === "rejected") {
-        await candidateApi.reject(id, reason || "");
+        res = await candidateApi.reject(id, reason || "");
       } else if (status === "terminated") {
-        await candidateApi.terminate(id, reason || "");
+        res = await candidateApi.terminate(id, reason || "");
       }
-      // Silently refresh in background to confirm
-      this.refresh();
+      if (res) {
+        setState((s) => ({
+          ...s,
+          candidates: s.candidates.map((c) =>
+            c.id === id ? mapCandidate(res) : c,
+          ),
+        }));
+      }
     } catch (error) {
       console.error("Failed to set candidate status:", error);
       // Rollback on error
@@ -295,25 +335,28 @@ export const electionStore = {
     setState((s) => ({ ...s, status: "active" }));
 
     try {
-      await electionApi.startElection();
-      this.refresh();
+      const res = await electionApi.startElection();
+      setState((s) => ({
+        ...s,
+        electionId: res?.electionId || s.electionId,
+        electionName: res?.electionName || s.electionName,
+        academicYear: res?.academicYear || s.academicYear,
+        status: (res?.status?.toLowerCase() as ElectionStatus) || "active",
+      }));
+
       // Ensure we get the new access code if protection is on
       const isAdmin =
         typeof window !== "undefined" &&
         localStorage.getItem("role") === "ADMIN";
       if (isAdmin) {
-        accessCodeApi
-          .getLatest()
-          .then((accessCode) => {
-            if (accessCode) {
-              setState((s) => ({
-                ...s,
-                accessCode: accessCode.code || "------",
-                codeProtection: accessCode.active ?? true,
-              }));
-            }
-          })
-          .catch(() => null);
+        const accessCode = await accessCodeApi.getLatest().catch(() => null);
+        if (accessCode) {
+          setState((s) => ({
+            ...s,
+            accessCode: accessCode.code || "------",
+            codeProtection: accessCode.active ?? true,
+          }));
+        }
       }
     } catch (error) {
       console.error("Failed to start election:", error);
@@ -329,8 +372,11 @@ export const electionStore = {
     try {
       const s = this.getState();
       if (s.electionId) {
-        await electionApi.stopElection(s.electionId);
-        this.refresh();
+        const res = await electionApi.stopElection(s.electionId);
+        setState((prev) => ({
+          ...prev,
+          status: (res?.status?.toLowerCase() as ElectionStatus) || "closed",
+        }));
       }
     } catch (error) {
       console.error("Failed to stop election:", error);
@@ -342,7 +388,11 @@ export const electionStore = {
   async generateCode() {
     try {
       const res = await accessCodeApi.generate();
-      this.refresh();
+      setState((s) => ({
+        ...s,
+        accessCode: res.code || s.accessCode,
+        codeProtection: res.active ?? s.codeProtection,
+      }));
       return res.code;
     } catch (error) {
       console.error("Failed to generate code:", error);
@@ -352,8 +402,12 @@ export const electionStore = {
 
   async setCode(code: string) {
     try {
-      await accessCodeApi.setManual(code);
-      this.refresh();
+      const res = await accessCodeApi.setManual(code);
+      setState((s) => ({
+        ...s,
+        accessCode: res.code || code,
+        codeProtection: res.active ?? s.codeProtection,
+      }));
     } catch (error) {
       console.error("Failed to set code:", error);
       throw error;
@@ -364,8 +418,11 @@ export const electionStore = {
     const previous = state.codeProtection;
     setState((s) => ({ ...s, codeProtection: on }));
     try {
-      await accessCodeApi.toggleProtection(on);
-      this.refresh();
+      const res = await accessCodeApi.toggleProtection(on);
+      setState((s) => ({
+        ...s,
+        codeProtection: res?.active ?? on,
+      }));
     } catch (error) {
       console.error("Failed to set code protection:", error);
       setState((s) => ({ ...s, codeProtection: previous }));
@@ -382,7 +439,13 @@ export const electionStore = {
       } else {
         await deviceApi.unlockAll();
       }
-      this.refresh();
+      setState((s) => ({
+        ...s,
+        devices: s.devices.map((d) => ({
+          ...d,
+          status: on ? "locked" : "active",
+        })),
+      }));
     } catch (error) {
       console.error("Failed to set emergency lock:", error);
       setState((s) => ({ ...s, emergencyLock: previous }));
@@ -409,8 +472,6 @@ export const electionStore = {
         electionId: s.electionId,
         selections: selections,
       });
-      // Refresh in background to update results for admin without blocking voter
-      this.refresh();
     } catch (error) {
       console.error("Failed to submit votes:", error);
       throw error;
