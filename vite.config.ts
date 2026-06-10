@@ -15,7 +15,7 @@ export default defineConfig({
   vite: {
     server: {
       port: 3000,
-      allowedHosts: ["instigative-overvaluably-rozella.ngrok-free.dev"],
+      allowedHosts: ["https://frontend-aq76.onrender.com/"],
     },
   },
 });
