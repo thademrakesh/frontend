@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Trophy } from "lucide-react";
+import { Trophy, AlertCircle } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -161,7 +161,7 @@ export default function ResultsPage() {
 
       {/* Per-position results */}
       <div className="space-y-6">
-        {positionStats.map(({ position, total, candidates }) => (
+        {positionStats.map(({ position, total, candidates, isTie }) => (
           <div
             key={position.id}
             className="overflow-hidden rounded-sm border border-border bg-card"
@@ -175,9 +175,16 @@ export default function ResultsPage() {
                   {position.name}
                 </h3>
               </div>
-              <span className="font-mono text-xs text-muted-foreground">
-                {total} {total === 1 ? "vote" : "votes"}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                {isTie && (
+                  <span className="flex items-center gap-1 rounded bg-accent/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-accent-foreground/80">
+                    <AlertCircle className="size-3" /> Tie
+                  </span>
+                )}
+                <span className="font-mono text-xs text-muted-foreground">
+                  {total} {total === 1 ? "vote" : "votes"}
+                </span>
+              </div>
             </div>
             {candidates.length === 0 ? (
               <p className="p-6 text-sm text-muted-foreground">
@@ -185,84 +192,87 @@ export default function ResultsPage() {
               </p>
             ) : (
               <ul className="divide-y divide-border">
-                {candidates.map((row, i) => (
-                  <li
-                    key={row.candidate.id}
-                    className={`flex items-center gap-6 px-6 py-4 transition-all ${
-                      i === 0 && row.votes > 0 ? "bg-success/5" : ""
-                    }`}
-                  >
-                    {/* Candidate Photo */}
-                    <div className="size-14 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-                      {row.candidate.photo ? (
-                        <img
-                          src={row.candidate.photo}
-                          alt={row.candidate.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
-                          {row.candidate.name
-                            ?.split(" ")
-                            .map((p) => p[0])
-                            .slice(0, 2)
-                            .join("")}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="mb-2 flex items-center gap-3">
-                        <span className="text-base font-bold">
-                          {row.candidate.name}
-                        </span>
-                        {i === 0 && row.votes > 0 && (
-                          <span className="flex items-center gap-1 rounded bg-warning/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-warning-foreground/80">
-                            <Trophy className="size-3" /> Winner
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mb-3 flex items-center gap-2">
-                        {row.candidate.symbol && (
+                {candidates.map((row, i) => {
+                  const isWinner = !isTie && i === 0 && row.votes > 0;
+                  return (
+                    <li
+                      key={row.candidate.id}
+                      className={`flex items-center gap-6 px-6 py-4 transition-all ${
+                        isWinner ? "bg-success/5" : ""
+                      }`}
+                    >
+                      {/* Candidate Photo */}
+                      <div className="size-14 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+                        {row.candidate.photo ? (
                           <img
-                            src={row.candidate.symbol}
-                            alt={row.candidate.symbolName}
-                            className="size-6 object-contain"
+                            src={row.candidate.photo}
+                            alt={row.candidate.name}
+                            className="h-full w-full object-cover"
                           />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
+                            {row.candidate.name
+                              ?.split(" ")
+                              .map((p) => p[0])
+                              .slice(0, 2)
+                              .join("")}
+                          </div>
                         )}
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-primary">
-                          {row.candidate.symbolName || row.candidate.symbol}
-                        </span>
                       </div>
 
-                      <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                        <div
-                          className={`h-full transition-all duration-500 ${
-                            i === 0 && row.votes > 0
-                              ? "bg-success"
-                              : "bg-primary/70"
-                          }`}
-                          style={{ width: `${row.percent}%` }}
-                        />
-                      </div>
-                    </div>
+                      <div className="flex-1">
+                        <div className="mb-2 flex items-center gap-3">
+                          <span className="text-base font-bold">
+                            {row.candidate.name}
+                          </span>
+                          {isWinner && (
+                            <span className="flex items-center gap-1 rounded bg-warning/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-widest text-warning-foreground/80">
+                              <Trophy className="size-3" /> Winner
+                            </span>
+                          )}
+                        </div>
 
-                    <div className="text-right">
-                      <div className="flex flex-col items-end">
-                        <p className="font-mono text-3xl font-bold tracking-tighter">
-                          {row.votes.toLocaleString()}
-                        </p>
-                        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                          Total Votes
+                        <div className="mb-3 flex items-center gap-2">
+                          {row.candidate.symbol && (
+                            <img
+                              src={row.candidate.symbol}
+                              alt={row.candidate.symbolName}
+                              className="size-6 object-contain"
+                            />
+                          )}
+                          <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-primary">
+                            {row.candidate.symbolName || row.candidate.symbol}
+                          </span>
+                        </div>
+
+                        <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                          <div
+                            className={`h-full transition-all duration-500 ${
+                              isWinner
+                                ? "bg-success"
+                                : "bg-primary/70"
+                            }`}
+                            style={{ width: `${row.percent}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="flex flex-col items-end">
+                          <p className="font-mono text-3xl font-bold tracking-tighter">
+                            {row.votes.toLocaleString()}
+                          </p>
+                          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                            Total Votes
+                          </p>
+                        </div>
+                        <p className="mt-1 font-mono text-xs font-bold text-primary">
+                          {row.percent}%
                         </p>
                       </div>
-                      <p className="mt-1 font-mono text-xs font-bold text-primary">
-                        {row.percent}%
-                      </p>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

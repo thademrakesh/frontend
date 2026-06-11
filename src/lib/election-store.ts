@@ -161,11 +161,11 @@ export const electionStore = {
   updateState: setState, // Export the updater for direct use
 
 
-  async refresh(full = false, includeResults = false, minimal = false) {
+  async refresh(full = false, includeResults = false, minimal = false, showSpinner = true) {
     // Initial load always shows loading spinner
     const isInitialLoad =
       state.isLoading && state.electionName === "Loading Election...";
-    if (isInitialLoad || full) {
+    if ((isInitialLoad || full) && showSpinner) {
       setState((s) => ({ ...s, isLoading: true }));
     }
 
@@ -506,7 +506,19 @@ export function tallyForPosition(positionId: string) {
     return {
       total: 0,
       candidates: [],
+      isTie: false,
     };
+  }
+
+  // Determine if it's a tie
+  const sortedCandidates = [...res.candidates].sort((a, b) => b.voteCount - a.voteCount);
+  let isTie = false;
+  
+  if (sortedCandidates.length >= 2) {
+    // Check if top two have same votes and votes > 0
+    if (sortedCandidates[0].voteCount === sortedCandidates[1].voteCount && sortedCandidates[0].voteCount > 0) {
+      isTie = true;
+    }
   }
 
   return {
@@ -523,5 +535,6 @@ export function tallyForPosition(positionId: string) {
       percent: Math.round(c.percentage),
       winner: c.winner,
     })),
+    isTie,
   };
 }

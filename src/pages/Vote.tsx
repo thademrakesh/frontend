@@ -20,7 +20,7 @@ import { accessCodeApi, deviceApi, electionApi } from "@/lib/api";
 
 type Phase = "code" | "voting" | "review" | "thanks";
 
-const SESSION_TIMEOUT_MS = 2 * 60 * 1000;
+const SESSION_TIMEOUT_MS = 5 * 60 * 1000;
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -146,6 +146,7 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   // Per-session candidate ordering (randomized once per session)
   const orderRef = useRef<Map<string, Candidate[]> | null>(null);
@@ -204,13 +205,14 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
   }
 
   async function verifyCode() {
-    // If the access code is not loaded in state (e.g. for public user),
-    // we should verify it via backend API
+    if (isVerifying) return;
+    setIsVerifying(true);
     try {
       const res = await accessCodeApi.verify(codeInput);
       if (res.valid) {
         // Load full data (candidates, positions) before switching to voting phase
-        await electionStore.refresh(true);
+        // Pass showSpinner = false as the 4th argument so it doesn't wipe the screen with loading layout
+        await electionStore.refresh(true, false, false, false);
         setPhase("voting");
         setCodeError(null);
       } else {
@@ -218,21 +220,29 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
       }
     } catch (error) {
       setCodeError("Error verifying code. Please try again.");
+    } finally {
+      setIsVerifying(false);
     }
   }
 
   function toggleSelection(candidateId: string) {
     if (!currentPos) return;
     setSelections((prev) => {
-      const list = prev[currentPos.id] ?? [];
-      if (list.includes(candidateId)) {
+      const currentSelection = prev[currentPos.id] ?? [];
+      
+      // If candidate is already selected, unselect it
+      if (currentSelection.includes(candidateId)) {
         return {
           ...prev,
-          [currentPos.id]: list.filter((id) => id !== candidateId),
+          [currentPos.id]: [],
         };
       }
-      if (list.length >= 3) return prev;
-      return { ...prev, [currentPos.id]: [...list, candidateId] };
+      
+      // Otherwise, select only this candidate
+      return {
+        ...prev,
+        [currentPos.id]: [candidateId],
+      };
     });
   }
 
@@ -288,17 +298,20 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="h-[calc(100vh-64px)] w-full overflow-hidden px-6 py-6">
         {phase === "code" && (
-          <CodeScreen
-            value={codeInput}
-            onChange={(v) => {
-              setCodeInput(v);
-              setCodeError(null);
-            }}
-            onSubmit={verifyCode}
-            error={codeError}
-          />
+          <div className="mx-auto max-w-2xl">
+            <CodeScreen
+              value={codeInput}
+              onChange={(v) => {
+                setCodeInput(v);
+                setCodeError(null);
+              }}
+              onSubmit={verifyCode}
+              error={codeError}
+              isVerifying={isVerifying}
+            />
+          </div>
         )}
 
         {phase === "voting" && currentPos && (
@@ -321,18 +334,24 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
         )}
 
         {phase === "review" && (
-          <ReviewScreen
-            positions={activePositions}
-            selections={selections}
-            candidatesById={Object.fromEntries(
-              candidates.map((c) => [c.id, c]),
-            )}
-            onBack={() => setPhase("voting")}
-            onConfirm={() => setShowConfirm(true)}
-          />
+          <div className="mx-auto max-w-5xl">
+            <ReviewScreen
+              positions={activePositions}
+              selections={selections}
+              candidatesById={Object.fromEntries(
+                candidates.map((c) => [c.id, c]),
+              )}
+              onBack={() => setPhase("voting")}
+              onConfirm={() => setShowConfirm(true)}
+            />
+          </div>
         )}
 
-        {phase === "thanks" && <ThanksScreen />}
+        {phase === "thanks" && (
+          <div className="mx-auto max-w-2xl">
+            <ThanksScreen />
+          </div>
+        )}
       </div>
 
       {showConfirm && (
@@ -375,11 +394,13 @@ function CodeScreen({
   onChange,
   onSubmit,
   error,
+  isVerifying = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   error: string | null;
+  isVerifying?: boolean;
 }) {
   const digits = Array.from({ length: 6 }, (_, i) => value[i] ?? "");
 
@@ -419,10 +440,11 @@ function CodeScreen({
             onChange(e.target.value.replace(/\D/g, "").slice(0, 6))
           }
           onKeyDown={(e) => {
-            if (e.key === "Enter" && value.length === 6) onSubmit();
+            if (e.key === "Enter" && value.length === 6 && !isVerifying) onSubmit();
           }}
           className="mt-6 w-full rounded border border-white/20 bg-transparent px-4 py-3 text-center font-mono text-lg tracking-[0.4em] text-white placeholder-white/30 outline-none focus:border-primary"
           placeholder="000000"
+          disabled={isVerifying}
         />
         {error && (
           <p className="mt-3 font-mono text-xs uppercase tracking-widest text-accent">
@@ -431,10 +453,10 @@ function CodeScreen({
         )}
         <Button
           onClick={onSubmit}
-          disabled={value.length !== 6}
+          disabled={value.length !== 6 || isVerifying}
           className="mt-6 w-full bg-white py-6 font-extrabold uppercase tracking-widest text-ink hover:bg-white/90 disabled:opacity-40"
         >
-          Verify Identity
+          {isVerifying ? "Verifying Code..." : "Verify Identity"}
         </Button>
       </div>
 
@@ -469,13 +491,13 @@ function VotingScreen({
   onNext: () => void;
 }) {
   return (
-    <div className="animate-ballot">
-      <div className="mb-6 flex items-end justify-between">
+    <div className="flex h-full flex-col animate-ballot">
+      <div className="mb-4 flex items-end justify-between">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">
             Position {positionIndex + 1} of {totalPositions}
           </p>
-          <h2 className="mt-2 text-4xl font-extrabold tracking-tight">
+          <h2 className="mt-1 text-3xl font-extrabold tracking-tight">
             {position.name}
           </h2>
         </div>
@@ -483,15 +505,15 @@ function VotingScreen({
           <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">
             Selected
           </p>
-          <p className="font-mono text-2xl font-bold">
+          <p className="font-mono text-xl font-bold">
             <span className="text-primary">{selected.length}</span>
-            <span className="text-white/40"> / 3</span>
+            <span className="text-white/40"> / 1</span>
           </p>
         </div>
       </div>
 
       {/* Step indicator */}
-      <div className="mb-8 flex gap-1.5">
+      <div className="mb-6 flex gap-1">
         {Array.from({ length: totalPositions }).map((_, i) => (
           <div
             key={i}
@@ -506,24 +528,27 @@ function VotingScreen({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid flex-1 grid-cols-2 gap-3 overflow-y-auto pr-1 lg:grid-cols-3 xl:grid-cols-4 custom-scrollbar">
         {candidates.map((c) => {
           const isSelected = selected.includes(c.id);
-          const disabled = !isSelected && selected.length >= 3;
+          const hasSelection = selected.length > 0;
+          const isDisabled = hasSelection && !isSelected;
           return (
             <button
               key={c.id}
-              onClick={() => !disabled && onToggle(c.id)}
-              disabled={disabled}
-              className={`group text-left transition-all ${
+              onClick={() => onToggle(c.id)}
+              disabled={isDisabled}
+              className={`group relative flex flex-col overflow-hidden text-left transition-all ${
                 isSelected
-                  ? "border-2 border-primary bg-primary/10 shadow-[0_0_20px_rgba(0,71,171,0.1)]"
-                  : "border border-white/10 bg-white/5 hover:border-white/40"
-              } rounded p-5 ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                  ? "border-2 border-primary bg-primary/10 shadow-[0_0_15px_rgba(0,71,171,0.1)]"
+                  : isDisabled
+                  ? "border border-white/5 bg-white/2.5 cursor-not-allowed opacity-40"
+                  : "border border-white/10 bg-white/5 hover:border-white/30"
+              } rounded-lg p-3`}
             >
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-3">
                 {/* Left: Photo */}
-                <div className="size-24 shrink-0 overflow-hidden rounded border border-white/10 bg-white/5 shadow-inner">
+                <div className="size-16 shrink-0 overflow-hidden rounded border border-white/10 bg-white/5 shadow-inner">
                   {c.photo ? (
                     <img
                       src={c.photo}
@@ -531,7 +556,7 @@ function VotingScreen({
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xl font-bold text-white/80">
+                    <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white/80">
                       {c.name
                         .split(" ")
                         .map((p) => p[0])
@@ -543,44 +568,42 @@ function VotingScreen({
 
                 {/* Center: Info */}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-xl font-bold text-white">{c.name}</h3>
-                    <div
-                      className={`flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
-                        isSelected
-                          ? "border-primary bg-primary"
-                          : "border-white/30 bg-transparent group-hover:border-white/60"
-                      }`}
-                    >
-                      {isSelected && (
-                        <CheckCircle2 className="size-4 text-white" />
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-0.5 text-xs font-medium text-white/60">
+                  <h3 className="truncate text-sm font-bold text-white leading-tight">
+                    {c.name}
+                  </h3>
+                  <p className="mt-0.5 text-[10px] font-medium text-white/60">
                     Grade {c.className}-{c.section}
-                  </p>
-                  <p className="mt-3 line-clamp-2 text-xs italic leading-relaxed text-white/40">
-                    “{c.manifesto}”
                   </p>
                 </div>
 
                 {/* Right: Symbol */}
-                <div className="flex w-24 shrink-0 flex-col items-center gap-2 rounded-lg bg-white/5 p-2 text-center">
+                <div className="size-16 shrink-0 flex items-center justify-center rounded bg-white/5">
                   {c.symbol ? (
                     <img
                       src={c.symbol}
                       alt={c.symbolName}
-                      className="size-24 object-contain transition-transform group-hover:scale-110"
+                      className="size-12 object-contain transition-transform group-hover:scale-110"
                     />
                   ) : (
-                    <div className="flex size-24 items-center justify-center rounded bg-white/10 text-[10px] uppercase text-white/40">
+                    <div className="text-[8px] uppercase text-white/40">
                       No Icon
                     </div>
                   )}
-                  <p className="w-full truncate font-mono text-[9px] font-bold uppercase tracking-widest text-primary">
-                    {c.symbolName}
-                  </p>
+                </div>
+              </div>
+
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/5 pt-2">
+                <p className="truncate font-mono text-[8px] font-bold uppercase tracking-widest text-primary">
+                  {c.symbolName}
+                </p>
+                <div
+                  className={`flex size-4 shrink-0 items-center justify-center rounded-full border transition-all ${
+                    isSelected
+                      ? "border-primary bg-primary"
+                      : "border-white/20 bg-transparent group-hover:border-white/40"
+                  }`}
+                >
+                  {isSelected && <CheckCircle2 className="size-2.5 text-white" />}
                 </div>
               </div>
             </button>
@@ -588,17 +611,18 @@ function VotingScreen({
         })}
       </div>
 
-      <div className="sticky bottom-6 mt-10 flex items-center justify-between rounded border border-white/10 bg-ink/95 p-4 backdrop-blur-md">
+      <div className="mt-6 flex items-center justify-between rounded-xl border border-white/10 bg-ink/95 p-3 backdrop-blur-md">
         <Button
           variant="outline"
           onClick={onPrev}
           disabled={positionIndex === 0}
+          size="sm"
           className="border-white/20 bg-transparent text-white hover:bg-white/10 disabled:opacity-30"
         >
           <ChevronLeft className="mr-1 size-4" /> Back
         </Button>
         <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">
-          You may select up to 3 candidates
+          Select one candidate
         </p>
         <Button
           onClick={() => {
@@ -611,6 +635,7 @@ function VotingScreen({
             }
             onNext();
           }}
+          size="sm"
           className={`font-bold uppercase tracking-widest transition-all ${
             selected.length > 0
               ? "bg-white text-ink hover:bg-white/90"
@@ -639,19 +664,21 @@ function ReviewScreen({
   onConfirm: () => void;
 }) {
   return (
-    <div className="animate-ballot">
-      <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">
-        Final Step
-      </p>
-      <h2 className="mt-2 text-4xl font-extrabold tracking-tight">
-        Review your ballot
-      </h2>
-      <p className="mt-2 text-sm text-white/60">
-        Confirm your selections below. After submission your vote cannot be
-        changed.
-      </p>
+    <div className="flex h-full flex-col animate-ballot">
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-primary">
+          Final Step
+        </p>
+        <h2 className="mt-1 text-3xl font-extrabold tracking-tight">
+          Review your ballot
+        </h2>
+        <p className="mt-1 text-sm text-white/60">
+          Confirm your selections below. After submission your vote cannot be
+          changed.
+        </p>
+      </div>
 
-      <div className="mt-8 space-y-3">
+      <div className="mt-6 flex-1 space-y-3 overflow-y-auto pr-1 custom-scrollbar">
         {positions.map((p) => {
           const picks = selections[p.id] ?? [];
           return (
@@ -711,19 +738,21 @@ function ReviewScreen({
         })}
       </div>
 
-      <div className="mt-10 flex gap-3">
+      <div className="mt-6 flex items-center justify-between rounded-xl border border-white/10 bg-ink/95 p-3 backdrop-blur-md">
         <Button
           variant="outline"
           onClick={onBack}
-          className="flex-1 border-white/20 bg-transparent text-white hover:bg-white/10"
+          size="sm"
+          className="border-white/20 bg-transparent text-white hover:bg-white/10"
         >
-          <ChevronLeft className="mr-1 size-4" /> Edit Choices
+          <ChevronLeft className="mr-1 size-4" /> Change Selections
         </Button>
         <Button
           onClick={onConfirm}
-          className="flex-1 bg-white py-6 font-extrabold uppercase tracking-widest text-ink hover:bg-white/90"
+          size="sm"
+          className="bg-primary font-bold uppercase tracking-widest text-white hover:bg-primary/90"
         >
-          Submit Ballot
+          Confirm & Submit <CheckCircle2 className="ml-2 size-4" />
         </Button>
       </div>
     </div>
