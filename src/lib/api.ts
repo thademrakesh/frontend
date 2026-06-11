@@ -1,6 +1,13 @@
 import axios from "axios";
 
-const API_BASE_URL ="http://localhost:8080/api/v1";
+// Toggle between local and ngrok for testing
+const USE_LOCAL_BACKEND = true; // Set to false for ngrok
+
+const API_BASE_URL ="https://guru-anvil-anger.ngrok-free.dev/api/v1";
+
+console.log("=== API CONFIG ===");
+console.log("Using backend:", API_BASE_URL);
+console.log("Use local backend:", USE_LOCAL_BACKEND);
 
 const api = axios.create({
   baseURL: API_BASE_URL,

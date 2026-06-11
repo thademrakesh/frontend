@@ -162,6 +162,9 @@ export const electionStore = {
 
 
   async refresh(full = false, includeResults = false, minimal = false, showSpinner = true) {
+    console.log("=== ELECTION STORE REFRESH CALLED ===");
+    console.log("Full:", full, "Include Results:", includeResults, "Minimal:", minimal);
+    
     // Initial load always shows loading spinner
     const isInitialLoad =
       state.isLoading && state.electionName === "Loading Election...";
@@ -169,16 +172,25 @@ export const electionStore = {
       setState((s) => ({ ...s, isLoading: true }));
     }
 
+    // Helper function to add timeout to promises
+    const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, fallbackValue: T): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((resolve) => setTimeout(() => resolve(fallbackValue), timeoutMs)),
+      ]);
+    };
+
     try {
       const isAdmin =
         typeof window !== "undefined" &&
         localStorage.getItem("role") === "ADMIN";
+      console.log("Is Admin:", isAdmin, "Token in localStorage:", !!localStorage.getItem("token"));
 
       // If minimal is true, we only care about election status and code protection
       if (minimal && !isAdmin) {
         const [election, codeStatus] = await Promise.all([
-          electionApi.getActiveElection().catch(() => null),
-          accessCodeApi.getStatus().catch(() => null),
+          withTimeout(electionApi.getActiveElection().catch(() => null), 10000, null),
+          withTimeout(accessCodeApi.getStatus().catch(() => null), 10000, null),
         ]);
 
         setState((s) => ({
@@ -195,26 +207,49 @@ export const electionStore = {
         return;
       }
 
-      // Parallelize everything
+      // Parallelize everything with timeouts
+      console.log("Fetching election and positions...");
       const requests: Promise<any>[] = [
-        electionApi.getActiveElection().catch(() => null),
-        positionApi.getAll().catch(() => []),
+        withTimeout(electionApi.getActiveElection().catch((err) => {
+          console.error("ERROR fetching election:", err);
+          return null;
+        }), 15000, null),
+        withTimeout(positionApi.getAll().catch((err) => {
+          console.error("ERROR fetching positions:", err);
+          return [];
+        }), 15000, []),
       ];
 
       // Only fetch candidates if we need them or on full refresh
       if (full || isInitialLoad || state.candidates.length === 0) {
-        requests.push(candidateApi.getAll().catch(() => []));
+        console.log("Fetching ALL candidates...");
+        requests.push(withTimeout(candidateApi.getAll().catch((err) => {
+          console.error("ERROR fetching candidates:", err);
+          return [];
+        }), 20000, []));
       } else {
+        console.log("Skipping candidate fetch, using existing data");
         requests.push(Promise.resolve(null)); // Keep array indices consistent
       }
 
       let results: any[] = [];
       if (isAdmin || includeResults) {
-        results = await resultApi.getResults().catch(() => []);
+        console.log("Fetching results...");
+        results = await withTimeout(resultApi.getResults().catch((err) => {
+          console.error("ERROR fetching results:", err);
+          return [];
+        }), 20000, []);
       }
 
+      console.log("Waiting for main requests...");
       const [election, positions, candidates] =
         await Promise.all(requests);
+      
+      console.log("=== FETCH RESULTS ===");
+      console.log("Election:", election);
+      console.log("Positions:", positions);
+      console.log("Candidates from API:", candidates);
+      console.log("Results:", results);
 
       let devices: any[] = [];
       let analytics: any = null;
@@ -222,14 +257,21 @@ export const electionStore = {
       let codeStatus: any = null;
 
       if (isAdmin) {
+        console.log("Admin - fetching devices, analytics, access code...");
         [devices, analytics, accessCode] = await Promise.all([
-          deviceApi.getAll().catch(() => []),
-          resultApi.getAnalytics().catch(() => null),
-          accessCodeApi.getLatest().catch(() => null),
+          withTimeout(deviceApi.getAll().catch(() => []), 10000, []),
+          withTimeout(resultApi.getAnalytics().catch(() => null), 10000, null),
+          withTimeout(accessCodeApi.getLatest().catch(() => null), 10000, null),
         ]);
+        console.log("Devices:", devices);
+        console.log("Analytics:", analytics);
+        console.log("Access Code:", accessCode);
       } else {
-        codeStatus = await accessCodeApi.getStatus().catch(() => null);
+        codeStatus = await withTimeout(accessCodeApi.getStatus().catch(() => null), 10000, null);
       }
+
+      const mappedCandidates = candidates ? (candidates || []).map(mapCandidate) : state.candidates;
+      console.log("Mapped Candidates:", mappedCandidates);
 
       setState((s) => ({
         ...s,
@@ -239,9 +281,7 @@ export const electionStore = {
           (election?.electionId ? s.electionName : "No Active Election"),
         academicYear: election?.academicYear || s.academicYear,
         status: (election?.status?.toLowerCase() as ElectionStatus) || s.status,
-        candidates: candidates
-          ? (candidates || []).map(mapCandidate)
-          : s.candidates,
+        candidates: mappedCandidates,
         positions: (positions || []).map((p: any) => ({
           id: p.positionId,
           name: p.positionName,
@@ -264,8 +304,10 @@ export const electionStore = {
           : (codeStatus?.codeRequired ?? s.codeProtection),
         isLoading: false,
       }));
+      
+      console.log("=== STATE UPDATED ===");
     } catch (error) {
-      console.error("Failed to refresh election state:", error);
+      console.error("!!! FAILED TO REFRESH ELECTION STATE:", error);
       setState((s) => ({ ...s, isLoading: false }));
     }
   },

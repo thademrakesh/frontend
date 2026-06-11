@@ -61,7 +61,8 @@ export default function AdminPage() {
   const [manualCode, setManualCode] = useState("");
 
   useEffect(() => {
-    electionStore.refresh();
+    // Force a FULL refresh on admin page mount - this guarantees we get candidates
+    electionStore.refresh(true);
   }, []);
 
   const totals = useMemo(() => {
@@ -103,13 +104,42 @@ export default function AdminPage() {
         eyebrow={state.academicYear}
         title={state.electionName}
         right={
-          <div className="flex gap-2 font-mono text-xs">
+          <div className="flex items-center gap-2 font-mono text-xs">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                console.log("=== MANUAL FULL REFRESH ===");
+                console.log("Current state before refresh:", state);
+                electionStore.refresh(true);
+                toast.info("Manual refresh triggered — check console!");
+              }}
+            >
+              <RefreshCw className="mr-1 size-3" /> Refresh
+            </Button>
             <StatChip label="Pending" value={totals.pending} tone="warning" />
             <StatChip label="Approved" value={totals.approved} tone="success" />
             <StatChip label="Votes" value={totals.votes} tone="primary" />
           </div>
         }
       />
+      
+      {/* DEBUG INFO */}
+      <div className="mb-6 p-4 border border-dashed border-yellow-500 bg-yellow-500/10 rounded">
+        <p className="font-mono text-xs text-yellow-500 mb-2">DEBUG INFO</p>
+        <p className="text-xs text-muted-foreground">
+          Total candidates in state: <strong>{state.candidates.length}</strong>
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Total positions in state: <strong>{state.positions.length}</strong>
+        </p>
+        <details className="mt-2">
+          <summary className="text-xs text-muted-foreground cursor-pointer">Show raw candidates</summary>
+          <pre className="text-[8px] mt-2 bg-black/20 p-2 rounded overflow-auto max-h-32">
+            {JSON.stringify(state.candidates, null, 2)}
+          </pre>
+        </details>
+      </div>
 
       <div className="grid grid-cols-12 gap-6">
         {/* CONTROL COLUMN */}
