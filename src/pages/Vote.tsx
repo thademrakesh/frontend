@@ -285,7 +285,7 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
               <div className="size-2.5 border-2 border-ink" />
             </div>
             <span className="font-extrabold uppercase tracking-tighter">
-              Gentanjali school voting
+              Geethanjali School Voting
             </span>
           </div>
           <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-white/40">

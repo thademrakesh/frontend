@@ -78,7 +78,7 @@ export function AdminShell({
       <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
       <footer className="border-t border-border bg-card px-6 py-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-          <span>Gentanjali school voting</span>
+          <span>Geethanjali School Voting</span>
           <span>All votes validated via secure transaction</span>
         </div>
       </footer>
