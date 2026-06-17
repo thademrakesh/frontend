@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Trophy, AlertCircle } from "lucide-react";
 import {
@@ -15,7 +15,20 @@ import {
   YAxis,
 } from "recharts";
 import { AdminShell, SectionHeader } from "@/components/election/Shell";
-import { useElection, tallyForPosition, electionStore } from "@/lib/election-store";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useElection,
+  tallyForPosition,
+  electionStore,
+  type Election,
+} from "@/lib/election-store";
 
 const ADMIN_NAV = [
   { to: "/admin", label: "Control Panel" },
@@ -33,6 +46,8 @@ const CHART_COLORS = [
 
 export default function ResultsPage() {
   const navigate = useNavigate();
+  const state = useElection((s) => s);
+  const [selectedElectionId, setSelectedElectionId] = useState<string>("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -45,8 +60,14 @@ export default function ResultsPage() {
     }
   }, [navigate]);
 
-  const state = useElection((s) => s);
-  const locked = state.status !== "closed";
+  const handleElectionChange = async (electionId: string) => {
+    setSelectedElectionId(electionId);
+    if (electionId) {
+      await electionStore.refreshResultsForElection(electionId);
+    } else {
+      await electionStore.refresh(false, true);
+    }
+  };
 
   const positionStats = state.positions.map((p) => ({
     position: p,
@@ -72,20 +93,37 @@ export default function ResultsPage() {
     <AdminShell role="Administration" nav={ADMIN_NAV}>
       <SectionHeader
         eyebrow="Election Analytics"
-        title="Results & Insights"
+        title={state.electionName}
         right={
-          <div className="text-right">
-            <p className="font-mono text-[10px] uppercase text-muted-foreground">
-              Total Votes Counted
-            </p>
-            <p className="font-mono text-4xl font-bold">
-              {totals.votes.toLocaleString()}
-            </p>
+          <div className="flex items-center gap-2">
+            <Select
+              value={selectedElectionId}
+              onValueChange={handleElectionChange}
+            >
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Select election to view results" />
+              </SelectTrigger>
+              <SelectContent>
+                {state.allElections.map((election: Election) => (
+                  <SelectItem key={election.electionId} value={election.electionId}>
+                    {election.electionName} ({election.status})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="text-right">
+              <p className="font-mono text-[10px] uppercase text-muted-foreground">
+                Total Votes Counted
+              </p>
+              <p className="font-mono text-4xl font-bold">
+                {totals.votes.toLocaleString()}
+              </p>
+            </div>
           </div>
         }
       />
 
-      {locked && (
+      {state.status !== "closed" && (
         <div className="mb-8 rounded-sm border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
           <strong className="uppercase">Live preview.</strong> Final results
           lock when the administrator stops the election.
@@ -248,9 +286,7 @@ export default function ResultsPage() {
                         <div className="h-2 overflow-hidden rounded-full bg-secondary">
                           <div
                             className={`h-full transition-all duration-500 ${
-                              isWinner
-                                ? "bg-success"
-                                : "bg-primary/70"
+                              isWinner ? "bg-success" : "bg-primary/70"
                             }`}
                             style={{ width: `${row.percent}%` }}
                           />

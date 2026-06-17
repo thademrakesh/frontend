@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Unlock,
   XCircle,
+  Plus,
 } from "lucide-react";
 import { AdminShell, SectionHeader } from "@/components/election/Shell";
 import { Button } from "@/components/ui/button";
@@ -24,10 +25,18 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   electionStore,
   useElection,
   type Candidate,
   type Position,
+  type Election,
 } from "@/lib/election-store";
 
 const ADMIN_NAV = [
@@ -59,6 +68,9 @@ export default function AdminPage() {
   } | null>(null);
   const [reason, setReason] = useState("");
   const [manualCode, setManualCode] = useState("");
+  const [createElectionModalOpen, setCreateElectionModalOpen] = useState(false);
+  const [newElectionName, setNewElectionName] = useState("");
+  const [selectedElectionId, setSelectedElectionId] = useState<string>("");
 
   useEffect(() => {
     // Force a FULL refresh on admin page mount - this guarantees we get candidates
@@ -97,6 +109,36 @@ export default function AdminPage() {
       </AdminShell>
     );
   }
+
+  const handleCreateElection = async () => {
+    if (!newElectionName.trim()) {
+      toast.error("Please enter an election name");
+      return;
+    }
+    try {
+      const newElection = await electionStore.createElection(newElectionName);
+      setSelectedElectionId(newElection.electionId);
+      setNewElectionName("");
+      setCreateElectionModalOpen(false);
+      toast.success("Election created successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create election");
+    }
+  };
+
+  const handleStartElection = async () => {
+    try {
+      if (selectedElectionId) {
+        await electionStore.startElection(selectedElectionId);
+      } else {
+        await electionStore.startElection();
+      }
+      toast.success("Election started successfully");
+    } catch (error) {
+      toast.error("Failed to start election");
+    }
+  };
 
   return (
     <AdminShell role="Administration" nav={ADMIN_NAV}>
@@ -154,19 +196,42 @@ export default function AdminPage() {
             </p>
             <div className="flex flex-col gap-3">
               {state.status !== "active" ? (
-                <Button
-                  onClick={async () => {
-                    try {
-                      await electionStore.startElection();
-                      toast.success("Election started successfully");
-                    } catch (error) {
-                      toast.error("Failed to start election");
-                    }
-                  }}
-                  className="w-full bg-primary font-bold uppercase tracking-widest"
-                >
-                  Start Election
-                </Button>
+                <>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={selectedElectionId}
+                        onValueChange={setSelectedElectionId}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Select election to start or create new" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {state.allElections
+                            .filter((e) => e.status !== "active")
+                            .map((election: Election) => (
+                              <SelectItem key={election.electionId} value={election.electionId}>
+                                {election.electionName} ({election.status})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => setCreateElectionModalOpen(true)}
+                      >
+                        <Plus className="size-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      onClick={handleStartElection}
+                      className="w-full bg-primary font-bold uppercase tracking-widest"
+                    >
+                      Start Election
+                    </Button>
+                  </div>
+                </>
               ) : (
                 <Button
                   variant="destructive"
@@ -407,7 +472,7 @@ export default function AdminPage() {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={4}
-              placeholder="e.g. Academic eligibility not met"
+              placeholder="e.g., Academic eligibility not met"
             />
           </div>
           <DialogFooter>
@@ -434,6 +499,36 @@ export default function AdminPage() {
               }}
             >
               Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Election Dialog */}
+      <Dialog open={createElectionModalOpen} onOpenChange={setCreateElectionModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Election</DialogTitle>
+            <DialogDescription>
+              Enter a name for the new election.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              Election Name
+            </Label>
+            <Input
+              value={newElectionName}
+              onChange={(e) => setNewElectionName(e.target.value)}
+              placeholder="e.g., Student Council 2025"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateElectionModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateElection}>
+              Create Election
             </Button>
           </DialogFooter>
         </DialogContent>

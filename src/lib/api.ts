@@ -67,23 +67,50 @@ export const authApi = {
 };
 
 export const electionApi = {
-  getActiveElection: async () => {
-    const response = await api.get("/elections/active");
-    return response.data;
-  },
-  startElection: async (id?: string) => {
-    if (id) {
-      const response = await api.put(`/elections/${id}/start`);
-      return response.data;
-    } else {
-      const response = await api.post(`/elections/start`);
-      return response.data;
-    }
-  },
-  stopElection: async (id: string) => {
-    const response = await api.put(`/elections/${id}/stop`);
-    return response.data;
-  },
+    getActiveElection: async () => {
+        const response = await api.get("/elections/active");
+        return response.data;
+    },
+    getAllElections: async () => {
+        const response = await api.get("/elections");
+        return response.data;
+    },
+    getElectionById: async (id: string) => {
+        const response = await api.get(`/elections/${id}`);
+        return response.data;
+    },
+    createElection: async (election: any) => {
+        const response = await api.post("/elections", election);
+        return response.data;
+    },
+    startElection: async (id?: string) => {
+        if (id) {
+            const response = await api.put(`/elections/${id}/start`);
+            return response.data;
+        } else {
+            const response = await api.post(`/elections/start`);
+            return response.data;
+        }
+    },
+    stopElection: async (id: string) => {
+        const response = await api.put(`/elections/${id}/stop`);
+        return response.data;
+    },
+};
+
+export const resultApi = {
+    getResults: async () => {
+        const response = await api.get("/results");
+        return response.data;
+    },
+    getResultsForElection: async (electionId: string) => {
+        const response = await api.get(`/results/election/${electionId}`);
+        return response.data;
+    },
+    getAnalytics: async () => {
+        const response = await api.get("/results/analytics");
+        return response.data;
+    },
 };
 
 export const candidateApi = {
@@ -168,17 +195,6 @@ export const accessCodeApi = {
   },
   verify: async (code: string) => {
     const response = await api.post("/access-codes/verify", { code });
-    return response.data;
-  },
-};
-
-export const resultApi = {
-  getResults: async () => {
-    const response = await api.get("/results");
-    return response.data;
-  },
-  getAnalytics: async () => {
-    const response = await api.get("/results/analytics");
     return response.data;
   },
 };

@@ -45,6 +45,15 @@ export type DeviceInfo = {
 
 export type ElectionStatus = "draft" | "active" | "closed";
 
+export type Election = {
+  electionId: string;
+  electionName: string;
+  academicYear: string;
+  startDate?: string;
+  endDate?: string;
+  status: ElectionStatus;
+};
+
 export type VoteRecord = {
   id: string;
   positionId: string;
@@ -98,6 +107,7 @@ export type ElectionState = {
     activeDevices: number;
     totalCandidates: number;
   };
+  allElections: Election[];
 };
 
 function emptyState(): ElectionState {
@@ -120,6 +130,7 @@ function emptyState(): ElectionState {
       activeDevices: 0,
       totalCandidates: 0,
     },
+    allElections: [],
   };
 }
 
@@ -160,7 +171,6 @@ export const electionStore = {
   },
   updateState: setState, // Export the updater for direct use
 
-
   async refresh(full = false, includeResults = false, minimal = false, showSpinner = true) {
     console.log("=== ELECTION STORE REFRESH CALLED ===");
     console.log("Full:", full, "Include Results:", includeResults, "Minimal:", minimal);
@@ -186,6 +196,9 @@ export const electionStore = {
         localStorage.getItem("role") === "ADMIN";
       console.log("Is Admin:", isAdmin, "Token in localStorage:", !!localStorage.getItem("token"));
 
+      // Fetch all elections regardless
+      const allElections = await withTimeout(electionApi.getAllElections().catch(() => []), 10000, []);
+
       // If minimal is true, we only care about election status and code protection
       if (minimal && !isAdmin) {
         const [election, codeStatus] = await Promise.all([
@@ -202,6 +215,7 @@ export const electionStore = {
           academicYear: election?.academicYear || s.academicYear,
           status: (election?.status?.toLowerCase() as ElectionStatus) || s.status,
           codeProtection: codeStatus?.codeRequired ?? s.codeProtection,
+          allElections: allElections,
           isLoading: false,
         }));
         return;
@@ -302,6 +316,7 @@ export const electionStore = {
         codeProtection: isAdmin
           ? (accessCode?.active ?? s.codeProtection)
           : (codeStatus?.codeRequired ?? s.codeProtection),
+        allElections: allElections,
         isLoading: false,
       }));
       
@@ -309,6 +324,95 @@ export const electionStore = {
     } catch (error) {
       console.error("!!! FAILED TO REFRESH ELECTION STATE:", error);
       setState((s) => ({ ...s, isLoading: false }));
+    }
+  },
+
+  async createElection(electionName: string) {
+    const currentYear = new Date().getFullYear();
+    const newElection = await electionApi.createElection({
+      electionName: electionName,
+      academicYear: `${currentYear}-${currentYear + 1}`,
+    });
+    setState((s) => ({
+      ...s,
+      allElections: [...s.allElections, newElection],
+    }));
+    return newElection;
+  },
+
+  async startElection(electionId?: string) {
+    const previousStatus = state.status;
+    setState((s) => ({ ...s, status: "active" }));
+
+    try {
+      const res = await electionApi.startElection(electionId);
+      setState((s) => ({
+        ...s,
+        electionId: res?.electionId || s.electionId,
+        electionName: res?.electionName || s.electionName,
+        academicYear: res?.academicYear || s.academicYear,
+        status: (res?.status?.toLowerCase() as ElectionStatus) || "active",
+      }));
+
+      // Ensure we get the new access code if protection is on
+      const isAdmin =
+        typeof window !== "undefined" &&
+        localStorage.getItem("role") === "ADMIN";
+      if (isAdmin) {
+        const accessCode = await accessCodeApi.getLatest().catch(() => null);
+        if (accessCode) {
+          setState((s) => ({
+            ...s,
+            accessCode: accessCode.code || "------",
+            codeProtection: accessCode.active ?? true,
+          }));
+        }
+      }
+      // Refresh elections to update statuses
+      await this.refresh(true, false, false, false);
+    } catch (error) {
+      console.error("Failed to start election:", error);
+      setState((s) => ({ ...s, status: previousStatus }));
+      throw error;
+    }
+  },
+
+  async stopElection() {
+    const previousStatus = state.status;
+    setState((s) => ({ ...s, status: "closed" }));
+
+    try {
+      const s = this.getState();
+      if (s.electionId) {
+        const res = await electionApi.stopElection(s.electionId);
+        setState((prev) => ({
+          ...prev,
+          status: (res?.status?.toLowerCase() as ElectionStatus) || "closed",
+        }));
+        // Refresh elections to update statuses
+        await this.refresh(true, false, false, false);
+      }
+    } catch (error) {
+      console.error("Failed to stop election:", error);
+      setState((s) => ({ ...s, status: previousStatus }));
+      throw error;
+    }
+  },
+
+  async refreshResultsForElection(electionId: string) {
+    try {
+      const results = await resultApi.getResultsForElection(electionId);
+      const election = await electionApi.getElectionById(electionId);
+      setState((s) => ({
+        ...s,
+        results: results,
+        electionName: election.electionName,
+        academicYear: election.academicYear,
+        status: election.status.toLowerCase() as ElectionStatus,
+        electionId: election.electionId,
+      }));
+    } catch (error) {
+      console.error("Failed to refresh results for election:", error);
     }
   },
 
@@ -368,61 +472,6 @@ export const electionStore = {
       console.error("Failed to set candidate status:", error);
       // Rollback on error
       setState((s) => ({ ...s, candidates: previousCandidates }));
-      throw error;
-    }
-  },
-
-  async startElection() {
-    const previousStatus = state.status;
-    setState((s) => ({ ...s, status: "active" }));
-
-    try {
-      const res = await electionApi.startElection();
-      setState((s) => ({
-        ...s,
-        electionId: res?.electionId || s.electionId,
-        electionName: res?.electionName || s.electionName,
-        academicYear: res?.academicYear || s.academicYear,
-        status: (res?.status?.toLowerCase() as ElectionStatus) || "active",
-      }));
-
-      // Ensure we get the new access code if protection is on
-      const isAdmin =
-        typeof window !== "undefined" &&
-        localStorage.getItem("role") === "ADMIN";
-      if (isAdmin) {
-        const accessCode = await accessCodeApi.getLatest().catch(() => null);
-        if (accessCode) {
-          setState((s) => ({
-            ...s,
-            accessCode: accessCode.code || "------",
-            codeProtection: accessCode.active ?? true,
-          }));
-        }
-      }
-    } catch (error) {
-      console.error("Failed to start election:", error);
-      setState((s) => ({ ...s, status: previousStatus }));
-      throw error;
-    }
-  },
-
-  async stopElection() {
-    const previousStatus = state.status;
-    setState((s) => ({ ...s, status: "closed" }));
-
-    try {
-      const s = this.getState();
-      if (s.electionId) {
-        const res = await electionApi.stopElection(s.electionId);
-        setState((prev) => ({
-          ...prev,
-          status: (res?.status?.toLowerCase() as ElectionStatus) || "closed",
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to stop election:", error);
-      setState((s) => ({ ...s, status: previousStatus }));
       throw error;
     }
   },
