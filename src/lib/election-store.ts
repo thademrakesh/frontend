@@ -25,7 +25,6 @@ export type Candidate = {
   studentId: string;
   name: string;
   className: string;
-  section: string;
   photo?: string;
   symbolName: string;
   symbol: string;
@@ -140,7 +139,6 @@ function mapCandidate(c: any): Candidate {
     studentId: c.studentId,
     name: c.name,
     className: c.className,
-    section: c.section,
     photo: c.photo,
     symbolName: c.symbolName,
     symbol: c.symbol,

@@ -567,7 +567,7 @@ function VotingScreen({
                   {c.name}
                 </h3>
                 <p className="text-[10px] font-medium text-white/60">
-                  {c.className}-{c.section}
+                  {c.className}
                 </p>
               </div>
 

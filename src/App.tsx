@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import Index from "@/pages/Index";
 import Vote from "@/pages/Vote";
@@ -33,7 +33,7 @@ const ProtectedRoute = ({
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Toaster position="top-center" theme="dark" />
       <Routes>
         <Route path="/" element={<Index />} />
@@ -79,7 +79,7 @@ function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

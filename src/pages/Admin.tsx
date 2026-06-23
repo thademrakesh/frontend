@@ -653,7 +653,7 @@ function CandidateCard({
               {positionName}
             </span>
             <span className="text-[10px] font-bold uppercase text-muted-foreground">
-              Grade {candidate.className}-{candidate.section}
+              Grade {candidate.className}
             </span>
           </div>
           <h3 className="truncate text-lg font-bold">{candidate.name}</h3>

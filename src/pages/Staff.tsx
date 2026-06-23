@@ -22,7 +22,6 @@ const schema = z.object({
   positionId: z.string().min(1, "Position is required"),
   name: z.string().trim().min(2).max(80),
   className: z.string().trim().min(1).max(10),
-  section: z.string().trim().min(1).max(5),
   symbolName: z.string().trim().min(1).max(40),
   symbol: z.string().min(1, "Election symbol image is required"),
 });
@@ -52,7 +51,6 @@ export default function StaffPage() {
     positionId: "",
     name: "",
     className: "",
-    section: "",
     symbolName: "",
     symbol: "",
   });
@@ -74,8 +72,7 @@ export default function StaffPage() {
     setForm({
       positionId: "",
       name: "",
-      studentId: "",
-      section: "",
+      className: "",
       symbolName: "",
       symbol: "",
     });
@@ -108,7 +105,7 @@ export default function StaffPage() {
             </Select>
           </Field>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <Field label="Student Name">
               <Input
                 value={form.name}
@@ -123,13 +120,6 @@ export default function StaffPage() {
                   setForm({ ...form, className: e.target.value })
                 }
                 placeholder="12"
-              />
-            </Field>
-            <Field label="Section">
-              <Input
-                value={form.section}
-                onChange={(e) => setForm({ ...form, section: e.target.value })}
-                placeholder="A"
               />
             </Field>
           </div>
