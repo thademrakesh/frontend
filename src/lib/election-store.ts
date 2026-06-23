@@ -26,10 +26,10 @@ export type Candidate = {
   name: string;
   className: string;
   section: string;
-  photo: string;
+  photo?: string;
   symbolName: string;
   symbol: string;
-  manifesto: string;
+  manifesto?: string;
   positionId: string;
   status: CandidateStatus;
   reason?: string;

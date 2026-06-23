@@ -630,15 +630,15 @@ function CandidateCard({
       className={`group overflow-hidden rounded-sm border border-border bg-card transition-colors hover:border-primary/40 ${statusStyles[candidate.status]}`}
     >
       <div className="flex gap-4 p-4">
-        <div className="size-24 shrink-0 overflow-hidden rounded-sm border border-border bg-secondary">
-          {candidate.photo ? (
+        <div className="size-32 shrink-0 overflow-hidden rounded-sm border border-border bg-secondary flex items-center justify-center">
+          {candidate.symbol ? (
             <img
-              src={candidate.photo}
-              alt={candidate.name}
-              className="h-full w-full object-cover"
+              src={candidate.symbol}
+              alt={candidate.symbolName}
+              className="h-24 w-24 object-contain"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-muted-foreground">
+            <div className="flex items-center justify-center text-2xl font-bold text-muted-foreground">
               {candidate.name
                 .split(" ")
                 .map((p) => p[0])
@@ -657,20 +657,8 @@ function CandidateCard({
             </span>
           </div>
           <h3 className="truncate text-lg font-bold">{candidate.name}</h3>
-          <div className="flex items-center gap-2">
-            {candidate.symbol && (
-              <img
-                src={candidate.symbol}
-                alt={candidate.symbolName}
-                className="size-5 object-contain"
-              />
-            )}
-            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-              {candidate.symbolName}
-            </p>
-          </div>
-          <p className="line-clamp-2 text-xs italic text-muted-foreground">
-            “{candidate.manifesto}”
+          <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            {candidate.symbolName}
           </p>
         </div>
       </div>

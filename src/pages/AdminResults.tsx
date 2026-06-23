@@ -239,16 +239,16 @@ export default function ResultsPage() {
                         isWinner ? "bg-success/5" : ""
                       }`}
                     >
-                      {/* Candidate Photo */}
-                      <div className="size-14 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-                        {row.candidate.photo ? (
+                      {/* Candidate Symbol */}
+                      <div className="size-14 shrink-0 overflow-hidden rounded-full border border-border bg-muted flex items-center justify-center">
+                        {row.candidate.symbol ? (
                           <img
-                            src={row.candidate.photo}
-                            alt={row.candidate.name}
-                            className="h-full w-full object-cover"
+                            src={row.candidate.symbol}
+                            alt={row.candidate.symbolName}
+                            className="h-10 w-10 object-contain"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground">
+                          <div className="flex items-center justify-center text-xs font-bold text-muted-foreground">
                             {row.candidate.name
                               ?.split(" ")
                               .map((p) => p[0])

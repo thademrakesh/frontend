@@ -21,12 +21,9 @@ const STAFF_NAV = [{ to: "/staff", label: "Register Candidate" }];
 const schema = z.object({
   positionId: z.string().min(1, "Position is required"),
   name: z.string().trim().min(2).max(80),
-  studentId: z.string().trim().min(3).max(20),
   className: z.string().trim().min(1).max(10),
   section: z.string().trim().min(1).max(5),
   symbolName: z.string().trim().min(1).max(40),
-  manifesto: z.string().trim().min(20).max(600),
-  photo: z.string().min(1, "Candidate photo is required"),
   symbol: z.string().min(1, "Election symbol image is required"),
 });
 
@@ -54,12 +51,9 @@ export default function StaffPage() {
   const [form, setForm] = useState({
     positionId: "",
     name: "",
-    studentId: "",
     className: "",
     section: "",
     symbolName: "",
-    manifesto: "",
-    photo: "",
     symbol: "",
   });
 
@@ -81,11 +75,8 @@ export default function StaffPage() {
       positionId: "",
       name: "",
       studentId: "",
-      className: "",
       section: "",
       symbolName: "",
-      manifesto: "",
-      photo: "",
       symbol: "",
     });
   };
@@ -117,21 +108,12 @@ export default function StaffPage() {
             </Select>
           </Field>
 
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
             <Field label="Student Name">
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Full name"
-              />
-            </Field>
-            <Field label="Student ID">
-              <Input
-                value={form.studentId}
-                onChange={(e) =>
-                  setForm({ ...form, studentId: e.target.value })
-                }
-                placeholder="STU-2024xxxx"
               />
             </Field>
             <Field label="Class">
@@ -160,24 +142,7 @@ export default function StaffPage() {
             />
           </Field>
 
-          <Field label="Manifesto / Description">
-            <Textarea
-              value={form.manifesto}
-              onChange={(e) => setForm({ ...form, manifesto: e.target.value })}
-              rows={5}
-              placeholder="Outline platform, priorities, and commitments..."
-            />
-            <p className="mt-1 text-[10px] text-muted-foreground">
-              20–600 characters · {form.manifesto.length} entered
-            </p>
-          </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <ImageUpload
-              label="Candidate Photo"
-              value={form.photo}
-              onChange={(v) => setForm({ ...form, photo: v })}
-            />
+          <div className="grid grid-cols-1 gap-3">
             <ImageUpload
               label="Election Symbol"
               value={form.symbol}

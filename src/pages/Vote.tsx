@@ -528,8 +528,8 @@ function VotingScreen({
         ))}
       </div>
 
-      <div className="grid flex-1 grid-cols-2 gap-3 overflow-y-auto pr-1 lg:grid-cols-3 xl:grid-cols-4 custom-scrollbar">
-        {candidates.map((c) => {
+      <div className="grid flex-1 grid-cols-4 gap-2 overflow-y-auto pr-1 custom-scrollbar auto-rows-fr">
+        {candidates.slice(0, 16).map((c) => {
           const isSelected = selected.includes(c.id);
           const hasSelection = selected.length > 0;
           const isDisabled = hasSelection && !isSelected;
@@ -538,62 +538,42 @@ function VotingScreen({
               key={c.id}
               onClick={() => onToggle(c.id)}
               disabled={isDisabled}
-              className={`group relative flex flex-col overflow-hidden text-left transition-all ${
+              className={`group relative flex flex-col items-center justify-between overflow-hidden text-center transition-all p-3 h-40 ${
                 isSelected
                   ? "border-2 border-primary bg-primary/10 shadow-[0_0_15px_rgba(0,71,171,0.1)]"
                   : isDisabled
                   ? "border border-white/5 bg-white/2.5 cursor-not-allowed opacity-40"
                   : "border border-white/10 bg-white/5 hover:border-white/30"
-              } rounded-lg p-3`}
+              } rounded-lg`}
             >
-              <div className="flex items-center gap-3">
-                {/* Left: Photo */}
-                <div className="size-16 shrink-0 overflow-hidden rounded border border-white/10 bg-white/5 shadow-inner">
-                  {c.photo ? (
-                    <img
-                      src={c.photo}
-                      alt={c.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm font-bold text-white/80">
-                      {c.name
-                        .split(" ")
-                        .map((p) => p[0])
-                        .slice(0, 2)
-                        .join("")}
-                    </div>
-                  )}
-                </div>
-
-                {/* Center: Info */}
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-bold text-white leading-tight">
-                    {c.name}
-                  </h3>
-                  <p className="mt-0.5 text-[10px] font-medium text-white/60">
-                    Grade {c.className}-{c.section}
-                  </p>
-                </div>
-
-                {/* Right: Symbol */}
-                <div className="size-16 shrink-0 flex items-center justify-center rounded bg-white/5">
-                  {c.symbol ? (
-                    <img
-                      src={c.symbol}
-                      alt={c.symbolName}
-                      className="size-12 object-contain transition-transform group-hover:scale-110"
-                    />
-                  ) : (
+              {/* Symbol */}
+              <div className="size-16 flex items-center justify-center rounded bg-white/5 flex-shrink-0">
+                {c.symbol ? (
+                  <img
+                    src={c.symbol}
+                    alt={c.symbolName}
+                    className="size-12 object-contain transition-transform group-hover:scale-110"
+                  />
+                ) : (
                     <div className="text-[8px] uppercase text-white/40">
                       No Icon
                     </div>
-                  )}
-                </div>
+                )}
               </div>
 
-              <div className="mt-2 flex items-center justify-between gap-2 border-t border-white/5 pt-2">
-                <p className="truncate font-mono text-[8px] font-bold uppercase tracking-widest text-primary">
+              {/* Name and Class */}
+              <div className="min-w-0 w-full flex-1 flex flex-col justify-center">
+                <h3 className="truncate text-sm font-bold text-white leading-tight">
+                  {c.name}
+                </h3>
+                <p className="text-[10px] font-medium text-white/60">
+                  {c.className}-{c.section}
+                </p>
+              </div>
+
+              {/* Symbol Name and Check */}
+              <div className="mt-auto flex items-center justify-between gap-1 w-full">
+                <p className="truncate font-mono text-[8px] font-bold uppercase tracking-widest text-primary flex-1">
                   {c.symbolName}
                 </p>
                 <div
@@ -707,13 +687,6 @@ function ReviewScreen({
                         className="flex items-center justify-between border-t border-white/10 pt-2 first:border-t-0 first:pt-0"
                       >
                         <div className="flex items-center gap-3">
-                          {c.photo && (
-                            <img
-                              src={c.photo}
-                              alt={c.name}
-                              className="size-8 rounded-full object-cover border border-white/10"
-                            />
-                          )}
                           <span className="font-bold">{c.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
