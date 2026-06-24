@@ -9,6 +9,7 @@ import {
   Unlock,
   XCircle,
   Plus,
+  Pencil,
 } from "lucide-react";
 import { AdminShell, SectionHeader } from "@/components/election/Shell";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,13 @@ export default function AdminPage() {
   const [createElectionModalOpen, setCreateElectionModalOpen] = useState(false);
   const [newElectionName, setNewElectionName] = useState("");
   const [selectedElectionId, setSelectedElectionId] = useState<string>("");
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    symbolName: "",
+    symbol: "",
+  });
 
   useEffect(() => {
     // Force a FULL refresh on admin page mount - this guarantees we get candidates
@@ -442,6 +450,15 @@ export default function AdminPage() {
                     setReason("");
                     setModal({ kind: "terminate", candidate: c });
                   }}
+                  onEdit={() => {
+                    setEditingCandidate(c);
+                    setEditForm({
+                      name: c.name,
+                      symbolName: c.symbolName,
+                      symbol: c.symbol || "",
+                    });
+                    setEditModalOpen(true);
+                  }}
                 />
               ))
             )}
@@ -533,6 +550,59 @@ export default function AdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Candidate Dialog */}
+      <Dialog open={editModalOpen} onOpenChange={(o) => !o && setEditModalOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Candidate</DialogTitle>
+            <DialogDescription>
+              Update the candidate's details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Field label="Candidate Name">
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                placeholder="Enter candidate name"
+              />
+            </Field>
+            <Field label="Symbol Name">
+              <Input
+                value={editForm.symbolName}
+                onChange={(e) => setEditForm({ ...editForm, symbolName: e.target.value })}
+                placeholder="e.g., Lion, Star"
+              />
+            </Field>
+            <ImageUpload
+              label="Symbol Image"
+              value={editForm.symbol}
+              onChange={(v) => setEditForm({ ...editForm, symbol: v })}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!editingCandidate) return;
+                try {
+                  await electionStore.updateCandidate(editingCandidate.id, editForm);
+                  toast.success("Candidate updated successfully");
+                  setEditModalOpen(false);
+                } catch (error) {
+                  console.error(error);
+                  toast.error("Failed to update candidate");
+                }
+              }}
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminShell>
   );
 }
@@ -608,12 +678,14 @@ function CandidateCard({
   onApprove,
   onReject,
   onTerminate,
+  onEdit,
   positions,
 }: {
   candidate: Candidate;
   onApprove: () => void;
   onReject: () => void;
   onTerminate: () => void;
+  onEdit: () => void;
   positions: Position[];
 }) {
   const positionName =
@@ -652,9 +724,17 @@ function CandidateCard({
             <span className="bg-primary/5 px-1.5 py-0.5 font-mono text-[10px] uppercase text-primary">
               {positionName}
             </span>
-            <span className="text-[10px] font-bold uppercase text-muted-foreground">
-              Grade {candidate.className}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                Grade {candidate.className}
+              </span>
+              <button
+                onClick={onEdit}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Pencil className="size-4" />
+              </button>
+            </div>
           </div>
           <h3 className="truncate text-lg font-bold">{candidate.name}</h3>
           <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
@@ -734,4 +814,116 @@ function DeviceStatusPill({
     locked: "text-accent",
   };
   return <span className={`font-bold uppercase ${map[status]}`}>{status}</span>;
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <Label className="mb-1.5 block font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
+}
+
+function ImageUpload({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (base64: string) => void;
+}) {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB raw limit
+        toast.error("File is too large. Please select an image under 10MB.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.src = reader.result as string;
+        img.onload = () => {
+          // Create canvas for compression
+          const canvas = document.createElement("canvas");
+          let width = img.width;
+          let height = img.height;
+
+          // Max dimensions for candidates/symbols
+          const MAX_SIZE = 800;
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Convert to compressed JPEG (0.7 quality)
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7);
+          onChange(compressedBase64);
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <label className="flex aspect-[3/2] cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed border-border bg-secondary/30 p-4 text-center transition-colors hover:bg-secondary/50 overflow-hidden">
+        {value ? (
+          <img
+            src={value}
+            alt={label}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <>
+            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+              {label}
+            </p>
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Click to upload
+            </p>
+          </>
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+      </label>
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground shadow-sm"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
 }

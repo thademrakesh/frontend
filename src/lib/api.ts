@@ -125,6 +125,10 @@ export const candidateApi = {
     const response = await api.post("/candidates", candidateData);
     return response.data;
   },
+  update: async (id: string, candidateData: any) => {
+    const response = await api.put(`/candidates/${id}`, candidateData);
+    return response.data;
+  },
   approve: async (id: string) => {
     const response = await api.put(`/candidates/${id}/approve`);
     return response.data;

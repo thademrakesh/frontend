@@ -435,6 +435,29 @@ export const electionStore = {
     }
   },
 
+  async updateCandidate(id: string, c: Partial<Candidate>) {
+    try {
+      // Map frontend type to backend type
+      const backendCandidate = {
+        name: c.name,
+        symbolName: c.symbolName,
+        symbol: c.symbol,
+        className: c.className,
+        positionId: c.positionId,
+      };
+      const res = await candidateApi.update(id, backendCandidate);
+      setState((s) => ({
+        ...s,
+        candidates: s.candidates.map((existing) =>
+          existing.id === id ? mapCandidate(res) : existing
+        ),
+      }));
+    } catch (error) {
+      console.error("Failed to update candidate:", error);
+      throw error;
+    }
+  },
+
   async setCandidateStatus(
     id: string,
     status: CandidateStatus,
