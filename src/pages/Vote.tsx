@@ -334,7 +334,7 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
         )}
 
         {phase === "review" && (
-          <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-5xl h-full">
             <ReviewScreen
               positions={activePositions}
               selections={selections}
