@@ -6,6 +6,8 @@ import {
   ChevronRight,
   Lock,
   AlertCircle,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -147,6 +149,24 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("voting-theme");
+      return saved ? saved === "dark" : true;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("voting-theme", isDarkMode ? "dark" : "light");
+      if (isDarkMode) {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  }, [isDarkMode]);
 
   // Per-session candidate ordering (randomized once per session)
   const orderRef = useRef<Map<string, Candidate[]> | null>(null);
@@ -277,21 +297,31 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
 
   /* RENDER */
   return (
-    <div className="min-h-screen bg-ink text-ink-foreground">
-      <header className="border-b border-white/10 px-6 py-4">
+    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? "bg-ink text-ink-foreground" : "bg-background text-foreground"}`}>
+      <header className={`border-b transition-colors duration-300 px-6 py-4 ${isDarkMode ? "border-white/10" : "border-border"}`}>
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex size-7 items-center justify-center rounded bg-ink-foreground">
-              <div className="size-2.5 border-2 border-ink" />
+            <div className={`flex size-7 items-center justify-center rounded transition-colors duration-300 ${isDarkMode ? "bg-ink-foreground" : "bg-foreground"}`}>
+              <div className={`size-2.5 border-2 transition-colors duration-300 ${isDarkMode ? "border-ink" : "border-background"}`} />
             </div>
             <span className="font-extrabold uppercase tracking-tighter">
               Geethanjali School Voting
             </span>
           </div>
-          <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest text-white/40">
-            <span>Kiosk · {deviceId}</span>
-            <span className="size-1 rounded-full bg-white/20" />
-            <Link to="/" className="hover:text-white/80">
+          <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-widest">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={`${isDarkMode ? "text-white/70 hover:text-white" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {isDarkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </Button>
+            <span className={`transition-colors duration-300 ${isDarkMode ? "text-white/40" : "text-muted-foreground"}`}>
+              Kiosk · {deviceId}
+            </span>
+            <span className={`size-1 rounded-full transition-colors duration-300 ${isDarkMode ? "bg-white/20" : "bg-border"}`} />
+            <Link to="/" className={`hover:transition-colors duration-300 ${isDarkMode ? "hover:text-white/80 text-white/40" : "hover:text-foreground text-muted-foreground"}`}>
               Exit
             </Link>
           </div>
@@ -310,6 +340,7 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
               onSubmit={verifyCode}
               error={codeError}
               isVerifying={isVerifying}
+              isDarkMode={isDarkMode}
             />
           </div>
         )}
@@ -330,6 +361,7 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
                 setPhase("review");
               }
             }}
+            isDarkMode={isDarkMode}
           />
         )}
 
@@ -343,24 +375,31 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
               )}
               onBack={() => setPhase("voting")}
               onConfirm={() => setShowConfirm(true)}
+              isDarkMode={isDarkMode}
             />
           </div>
         )}
 
         {phase === "thanks" && (
           <div className="mx-auto max-w-2xl">
-            <ThanksScreen />
+            <ThanksScreen isDarkMode={isDarkMode} />
           </div>
         )}
       </div>
 
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="max-w-md rounded border border-white/10 bg-ink p-8 text-center">
+          <div className={`max-w-md rounded border p-8 text-center transition-colors duration-300 ${
+            isDarkMode 
+              ? "border-white/10 bg-ink" 
+              : "border-border bg-background"
+          }`}>
             <h2 className="text-2xl font-extrabold tracking-tight">
               Confirm submission
             </h2>
-            <p className="mt-3 text-sm text-white/60">
+            <p className={`mt-3 text-sm transition-colors duration-300 ${
+              isDarkMode ? "text-white/60" : "text-muted-foreground"
+            }`}>
               Your vote will be submitted permanently and cannot be changed.
             </p>
             <div className="mt-6 flex gap-3">
@@ -368,14 +407,22 @@ function VotingKiosk({ deviceId }: { deviceId: string }) {
                 variant="outline"
                 disabled={isSubmitting}
                 onClick={() => setShowConfirm(false)}
-                className="flex-1 border-white/20 bg-transparent text-white hover:bg-white/10 disabled:opacity-50"
+                className={`flex-1 transition-colors duration-300 ${
+                  isDarkMode 
+                    ? "border-white/20 bg-transparent text-white hover:bg-white/10 disabled:opacity-50" 
+                    : "border-border bg-transparent text-foreground hover:bg-muted disabled:opacity-50"
+                }`}
               >
                 No, Go Back
               </Button>
               <Button
                 disabled={isSubmitting}
                 onClick={submitVotes}
-                className="flex-1 bg-white font-bold uppercase tracking-widest text-ink hover:bg-white/90 disabled:opacity-50"
+                className={`flex-1 font-bold uppercase tracking-widest transition-colors duration-300 ${
+                  isDarkMode 
+                    ? "bg-white text-ink hover:bg-white/90 disabled:opacity-50" 
+                    : "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                }`}
               >
                 {isSubmitting ? "Submitting..." : "Yes, Submit"}
               </Button>
@@ -395,12 +442,14 @@ function CodeScreen({
   onSubmit,
   error,
   isVerifying = false,
+  isDarkMode,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   error: string | null;
   isVerifying?: boolean;
+  isDarkMode: boolean;
 }) {
   const digits = Array.from({ length: 6 }, (_, i) => value[i] ?? "");
 
@@ -413,18 +462,22 @@ function CodeScreen({
         Cast Your Ballot
       </h1>
 
-      <div className="mt-10 rounded border border-white/10 bg-white/5 p-12 backdrop-blur-sm">
-        <p className="text-sm text-white/60">
+      <div className={`mt-10 rounded border p-12 backdrop-blur-sm transition-colors duration-300 ${
+        isDarkMode ? "border-white/10 bg-white/5" : "border-border bg-card"
+      }`}>
+        <p className={`text-sm transition-colors duration-300 ${isDarkMode ? "text-white/60" : "text-muted-foreground"}`}>
           Enter the 6-digit access code provided by election staff.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           {digits.map((d, i) => (
             <div
               key={i}
-              className={`flex size-14 items-center justify-center rounded font-mono text-3xl font-bold ${
+              className={`flex size-14 items-center justify-center rounded font-mono text-3xl font-bold transition-colors duration-300 ${
                 d
                   ? "border-2 border-primary bg-background text-foreground shadow-[0_0_15px_rgba(0,71,171,0.3)]"
-                  : "border border-white/20 bg-white/10 text-white"
+                  : isDarkMode 
+                    ? "border border-white/20 bg-white/10 text-white" 
+                    : "border border-border bg-muted text-foreground"
               }`}
             >
               {d}
@@ -442,7 +495,11 @@ function CodeScreen({
           onKeyDown={(e) => {
             if (e.key === "Enter" && value.length === 6 && !isVerifying) onSubmit();
           }}
-          className="mt-6 w-full rounded border border-white/20 bg-transparent px-4 py-3 text-center font-mono text-lg tracking-[0.4em] text-white placeholder-white/30 outline-none focus:border-primary"
+          className={`mt-6 w-full rounded border px-4 py-3 text-center font-mono text-lg tracking-[0.4em] outline-none focus:border-primary transition-colors duration-300 ${
+            isDarkMode 
+              ? "border-white/20 bg-transparent text-white placeholder-white/30" 
+              : "border-border bg-background text-foreground placeholder-muted-foreground"
+          }`}
           placeholder="000000"
           disabled={isVerifying}
         />
@@ -454,17 +511,27 @@ function CodeScreen({
         <Button
           onClick={onSubmit}
           disabled={value.length !== 6 || isVerifying}
-          className="mt-6 w-full bg-white py-6 font-extrabold uppercase tracking-widest text-ink hover:bg-white/90 disabled:opacity-40"
+          className={`mt-6 w-full py-6 font-extrabold uppercase tracking-widest transition-colors duration-300 ${
+            isDarkMode 
+              ? "bg-white text-ink hover:bg-white/90" 
+              : "bg-primary text-primary-foreground hover:bg-primary/90"
+          } disabled:opacity-40`}
         >
           {isVerifying ? "Verifying Code..." : "Verify Identity"}
         </Button>
       </div>
 
-      <div className="mt-8 flex items-center justify-center gap-6 font-mono text-[10px] uppercase tracking-widest text-white/40">
+      <div className={`mt-8 flex items-center justify-center gap-6 font-mono text-[10px] uppercase tracking-widest transition-colors duration-300 ${
+        isDarkMode ? "text-white/40" : "text-muted-foreground"
+      }`}>
         <span>Secure Channel</span>
-        <span className="size-1 rounded-full bg-white/20" />
+        <span className={`size-1 rounded-full transition-colors duration-300 ${
+          isDarkMode ? "bg-white/20" : "bg-border"
+        }`} />
         <span>Anonymous Storage</span>
-        <span className="size-1 rounded-full bg-white/20" />
+        <span className={`size-1 rounded-full transition-colors duration-300 ${
+          isDarkMode ? "bg-white/20" : "bg-border"
+        }`} />
         <span>v.2.4.0</span>
       </div>
     </div>
@@ -480,6 +547,7 @@ function VotingScreen({
   onToggle,
   onPrev,
   onNext,
+  isDarkMode,
 }: {
   position: { id: string; name: string };
   positionIndex: number;
@@ -489,6 +557,7 @@ function VotingScreen({
   onToggle: (id: string) => void;
   onPrev: () => void;
   onNext: () => void;
+  isDarkMode: boolean;
 }) {
   const getGridCols = (count: number) => {
     if (count <= 4) return 4;
@@ -533,12 +602,14 @@ function VotingScreen({
           </h2>
         </div>
         <div className="text-right">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">
+          <p className={`font-mono text-[10px] uppercase tracking-widest transition-colors duration-300 ${
+            isDarkMode ? "text-white/40" : "text-muted-foreground"
+          }`}>
             Selected
           </p>
           <p className="font-mono text-xl font-bold">
             <span className="text-primary">{selected.length}</span>
-            <span className="text-white/40"> / 1</span>
+            <span className={isDarkMode ? "text-white/40" : "text-muted-foreground"}> / 1</span>
           </p>
         </div>
       </div>
@@ -548,12 +619,12 @@ function VotingScreen({
         {Array.from({ length: totalPositions }).map((_, i) => (
           <div
             key={i}
-            className={`h-1 flex-1 rounded-full ${
+            className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
               i < positionIndex
                 ? "bg-primary"
                 : i === positionIndex
-                  ? "bg-white"
-                  : "bg-white/10"
+                  ? isDarkMode ? "bg-white" : "bg-foreground"
+                  : isDarkMode ? "bg-white/10" : "bg-border"
             }`}
           />
         ))}
@@ -569,25 +640,33 @@ function VotingScreen({
               key={c.id}
               onClick={() => onToggle(c.id)}
               disabled={isDisabled}
-              className={`group relative flex flex-col items-center justify-between overflow-hidden text-center transition-all p-2 ${cardHeight} ${
+              className={`group relative flex flex-col items-center justify-between overflow-hidden text-center transition-all p-2 ${cardHeight} rounded-lg transition-colors duration-300 ${
                 isSelected
                   ? "border-2 border-primary bg-primary/10 shadow-[0_0_15px_rgba(0,71,171,0.1)]"
                   : isDisabled
-                    ? "border border-white/5 bg-white/2.5 cursor-not-allowed opacity-40"
-                    : "border border-white/10 bg-white/5 hover:border-white/30"
-              } rounded-lg`}
+                    ? isDarkMode 
+                      ? "border border-white/5 bg-white/2.5 cursor-not-allowed opacity-40"
+                      : "border border-border bg-muted cursor-not-allowed opacity-40"
+                    : isDarkMode 
+                      ? "border border-white/10 bg-white/5 hover:border-white/30"
+                      : "border border-border bg-card hover:border-foreground/30"
+              }`}
             >
               {/* Symbol */}
-              <div className={`${symbolSize} flex items-center justify-center rounded bg-white/5 flex-shrink-0`}>
+              <div className={`${symbolSize} flex items-center justify-center rounded flex-shrink-0 transition-colors duration-300 ${
+                isDarkMode ? "bg-white/5" : "bg-muted"
+              }`}>
                 {c.symbol ? (
                   <img
                     src={c.symbol}
                     alt={c.symbolName}
                     className={`${symbolSize} object-contain transition-transform group-hover:scale-110`}
-                    style={{ width: "80%", height: "80%" }}
+                    style={{ width: "100%", height: "100%" }}
                   />
                 ) : (
-                    <div className="text-[8px] uppercase text-white/40">
+                    <div className={`text-[8px] uppercase transition-colors duration-300 ${
+                      isDarkMode ? "text-white/40" : "text-muted-foreground"
+                    }`}>
                       No Icon
                     </div>
                 )}
@@ -595,10 +674,14 @@ function VotingScreen({
 
               {/* Name and Class */}
               <div className="min-w-0 w-full flex-1 flex flex-col justify-center">
-                <h3 className="truncate text-sm font-bold text-white leading-tight">
+                <h3 className={`truncate text-sm font-bold leading-tight transition-colors duration-300 ${
+                  isDarkMode ? "text-white" : "text-foreground"
+                }`}>
                   {c.name}
                 </h3>
-                <p className="text-[10px] font-medium text-white/60">
+                <p className={`text-[10px] font-medium transition-colors duration-300 ${
+                  isDarkMode ? "text-white/60" : "text-muted-foreground"
+                }`}>
                   {c.className}
                 </p>
               </div>
@@ -612,10 +695,14 @@ function VotingScreen({
                   className={`flex size-4 shrink-0 items-center justify-center rounded-full border transition-all ${
                     isSelected
                       ? "border-primary bg-primary"
-                      : "border-white/20 bg-transparent group-hover:border-white/40"
+                      : isDarkMode 
+                        ? "border-white/20 bg-transparent group-hover:border-white/40"
+                        : "border-border bg-transparent group-hover:border-border/80"
                   }`}
                 >
-                  {isSelected && <CheckCircle2 className="size-2.5 text-white" />}
+                  {isSelected && <CheckCircle2 className={`size-2.5 transition-colors duration-300 ${
+                    isDarkMode ? "text-white" : "text-background"
+                  }`} />}
                 </div>
               </div>
             </button>
@@ -623,17 +710,27 @@ function VotingScreen({
         })}
       </div>
 
-      <div className="mt-6 flex items-center justify-between rounded-xl border border-white/10 bg-ink/95 p-3 backdrop-blur-md">
+      <div className={`mt-6 flex items-center justify-between rounded-xl border p-3 backdrop-blur-md transition-colors duration-300 ${
+        isDarkMode 
+          ? "border-white/10 bg-ink/95" 
+          : "border-border bg-card/95"
+      }`}>
         <Button
           variant="outline"
           onClick={onPrev}
           disabled={positionIndex === 0}
           size="sm"
-          className="border-white/20 bg-transparent text-white hover:bg-white/10 disabled:opacity-30"
+          className={`border transition-colors duration-300 ${
+            isDarkMode 
+              ? "border-white/20 bg-transparent text-white hover:bg-white/10" 
+              : "border-border bg-transparent text-foreground hover:bg-muted"
+          } disabled:opacity-30`}
         >
           <ChevronLeft className="mr-1 size-4" /> Back
         </Button>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">
+        <p className={`font-mono text-[10px] uppercase tracking-widest transition-colors duration-300 ${
+          isDarkMode ? "text-white/40" : "text-muted-foreground"
+        }`}>
           Select one candidate
         </p>
         <Button
@@ -650,8 +747,12 @@ function VotingScreen({
           size="sm"
           className={`font-bold uppercase tracking-widest transition-all ${
             selected.length > 0
-              ? "bg-white text-ink hover:bg-white/90"
-              : "bg-white/10 text-white/40"
+              ? isDarkMode 
+                ? "bg-white text-ink hover:bg-white/90" 
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+              : isDarkMode 
+                ? "bg-white/10 text-white/40" 
+                : "bg-muted text-muted-foreground"
           }`}
         >
           {positionIndex === totalPositions - 1 ? "Review" : "Next Position"}
@@ -668,12 +769,14 @@ function ReviewScreen({
   candidatesById,
   onBack,
   onConfirm,
+  isDarkMode,
 }: {
   positions: { id: string; name: string }[];
   selections: Record<string, string[]>;
   candidatesById: Record<string, Candidate>;
   onBack: () => void;
   onConfirm: () => void;
+  isDarkMode: boolean;
 }) {
   return (
     <div className="flex h-full flex-col animate-ballot">
@@ -684,7 +787,7 @@ function ReviewScreen({
         <h2 className="mt-1 text-3xl font-extrabold tracking-tight">
           Review your ballot
         </h2>
-        <p className="mt-1 text-sm text-white/60">
+        <p className={`mt-1 text-sm transition-colors duration-300 ${isDarkMode ? "text-white/60" : "text-muted-foreground"}`}>
           Confirm your selections below. After submission your vote cannot be
           changed.
         </p>
@@ -696,11 +799,15 @@ function ReviewScreen({
           return (
             <div
               key={p.id}
-              className="rounded border border-white/10 bg-white/5 p-5"
+              className={`rounded border p-5 transition-colors duration-300 ${
+                isDarkMode ? "border-white/10 bg-white/5" : "border-border bg-card"
+              }`}
             >
               <div className="mb-3 flex items-baseline justify-between">
                 <h3 className="text-lg font-bold">{p.name}</h3>
-                <span className="font-mono text-[10px] uppercase tracking-widest text-white/40">
+                <span className={`font-mono text-[10px] uppercase tracking-widest transition-colors duration-300 ${
+                  isDarkMode ? "text-white/40" : "text-muted-foreground"
+                }`}>
                   {picks.length} selected
                 </span>
               </div>
@@ -716,7 +823,9 @@ function ReviewScreen({
                     return (
                       <li
                         key={id}
-                        className="flex items-center justify-between border-t border-white/10 pt-2 first:border-t-0 first:pt-0"
+                        className={`flex items-center justify-between border-t pt-2 first:border-t-0 first:pt-0 transition-colors duration-300 ${
+                          isDarkMode ? "border-white/10" : "border-border"
+                        }`}
                       >
                         <div className="flex items-center gap-3">
                           <span className="font-bold">{c.name}</span>
@@ -729,7 +838,9 @@ function ReviewScreen({
                               className="size-4 object-contain"
                             />
                           )}
-                          <span className="font-mono text-[10px] uppercase tracking-widest text-white/40">
+                          <span className={`font-mono text-[10px] uppercase tracking-widest transition-colors duration-300 ${
+                            isDarkMode ? "text-white/40" : "text-muted-foreground"
+                          }`}>
                             {c.symbolName}
                           </span>
                         </div>
@@ -743,19 +854,27 @@ function ReviewScreen({
         })}
       </div>
 
-      <div className="mt-6 flex items-center justify-between rounded-xl border border-white/10 bg-ink/95 p-3 backdrop-blur-md">
+      <div className={`mt-6 flex items-center justify-between rounded-xl border p-3 backdrop-blur-md transition-colors duration-300 ${
+        isDarkMode 
+          ? "border-white/10 bg-ink/95" 
+          : "border-border bg-card/95"
+      }`}>
         <Button
           variant="outline"
           onClick={onBack}
           size="sm"
-          className="border-white/20 bg-transparent text-white hover:bg-white/10"
+          className={`border transition-colors duration-300 ${
+            isDarkMode 
+              ? "border-white/20 bg-transparent text-white hover:bg-white/10" 
+              : "border-border bg-transparent text-foreground hover:bg-muted"
+          }`}
         >
           <ChevronLeft className="mr-1 size-4" /> Change Selections
         </Button>
         <Button
           onClick={onConfirm}
           size="sm"
-          className="bg-primary font-bold uppercase tracking-widest text-white hover:bg-primary/90"
+          className="bg-primary font-bold uppercase tracking-widest text-primary-foreground hover:bg-primary/90"
         >
           Confirm & Submit <CheckCircle2 className="ml-2 size-4" />
         </Button>
@@ -764,7 +883,7 @@ function ReviewScreen({
   );
 }
 
-function ThanksScreen() {
+function ThanksScreen({ isDarkMode }: { isDarkMode: boolean }) {
   return (
     <div className="animate-ballot py-24 text-center">
       <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-success/20">
@@ -773,10 +892,14 @@ function ThanksScreen() {
       <h2 className="mt-8 text-5xl font-extrabold tracking-tighter">
         Thank you for voting
       </h2>
-      <p className="mt-4 text-base text-white/60">
+      <p className={`mt-4 text-base transition-colors duration-300 ${
+        isDarkMode ? "text-white/60" : "text-muted-foreground"
+      }`}>
         Your vote has been submitted successfully.
       </p>
-      <p className="mt-8 font-mono text-[10px] uppercase tracking-widest text-white/30">
+      <p className={`mt-8 font-mono text-[10px] uppercase tracking-widest transition-colors duration-300 ${
+        isDarkMode ? "text-white/30" : "text-muted-foreground/50"
+      }`}>
         Returning to access screen in 5 seconds...
       </p>
     </div>
