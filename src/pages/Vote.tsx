@@ -823,22 +823,24 @@ function ReviewScreen({
                     return (
                       <li
                         key={id}
-                        className={`flex items-center justify-between border-t pt-2 first:border-t-0 first:pt-0 transition-colors duration-300 ${
+                        className={`flex items-center justify-between border-t pt-3 first:border-t-0 first:pt-0 transition-colors duration-300 ${
                           isDarkMode ? "border-white/10" : "border-border"
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold">{c.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-4">
                           {c.symbol && (
-                            <img
-                              src={c.symbol}
-                              alt={c.symbolName}
-                              className="size-4 object-contain"
-                            />
+                            <div className="size-14 flex items-center justify-center rounded-lg flex-shrink-0">
+                              <img
+                                src={c.symbol}
+                                alt={c.symbolName}
+                                className="size-12 object-contain"
+                              />
+                            </div>
                           )}
-                          <span className={`font-mono text-[10px] uppercase tracking-widest transition-colors duration-300 ${
+                          <span className="font-bold text-lg">{c.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`font-mono text-sm uppercase tracking-widest transition-colors duration-300 ${
                             isDarkMode ? "text-white/40" : "text-muted-foreground"
                           }`}>
                             {c.symbolName}
