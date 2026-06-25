@@ -490,6 +490,37 @@ function VotingScreen({
   onPrev: () => void;
   onNext: () => void;
 }) {
+  const getGridCols = (count: number) => {
+    if (count <= 4) return 4;
+    if (count <= 6) return 3;
+    if (count <= 9) return 3;
+    if (count <= 12) return 4;
+    if (count <= 16) return 4;
+    return 5;
+  };
+
+  const getCardHeight = (count: number) => {
+    if (count <= 4) return "h-48";
+    if (count <= 6) return "h-40";
+    if (count <= 9) return "h-36";
+    if (count <= 12) return "h-32";
+    if (count <= 16) return "h-28";
+    return "h-24";
+  };
+
+  const getSymbolSize = (count: number) => {
+    if (count <= 4) return "size-20";
+    if (count <= 6) return "size-16";
+    if (count <= 9) return "size-14";
+    if (count <= 12) return "size-12";
+    if (count <= 16) return "size-10";
+    return "size-8";
+  };
+
+  const gridCols = getGridCols(candidates.length);
+  const cardHeight = getCardHeight(candidates.length);
+  const symbolSize = getSymbolSize(candidates.length);
+
   return (
     <div className="flex h-full flex-col animate-ballot">
       <div className="mb-4 flex items-end justify-between">
@@ -513,7 +544,7 @@ function VotingScreen({
       </div>
 
       {/* Step indicator */}
-      <div className="mb-6 flex gap-1">
+      <div className="mb-4 flex gap-1">
         {Array.from({ length: totalPositions }).map((_, i) => (
           <div
             key={i}
@@ -528,8 +559,8 @@ function VotingScreen({
         ))}
       </div>
 
-      <div className="grid flex-1 grid-cols-4 gap-2 overflow-y-auto pr-1 custom-scrollbar auto-rows-fr">
-        {candidates.slice(0, 16).map((c) => {
+      <div className={`grid flex-1 gap-2 auto-rows-fr`} style={{ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` }}>
+        {candidates.map((c) => {
           const isSelected = selected.includes(c.id);
           const hasSelection = selected.length > 0;
           const isDisabled = hasSelection && !isSelected;
@@ -538,21 +569,22 @@ function VotingScreen({
               key={c.id}
               onClick={() => onToggle(c.id)}
               disabled={isDisabled}
-              className={`group relative flex flex-col items-center justify-between overflow-hidden text-center transition-all p-3 h-40 ${
+              className={`group relative flex flex-col items-center justify-between overflow-hidden text-center transition-all p-2 ${cardHeight} ${
                 isSelected
                   ? "border-2 border-primary bg-primary/10 shadow-[0_0_15px_rgba(0,71,171,0.1)]"
                   : isDisabled
-                  ? "border border-white/5 bg-white/2.5 cursor-not-allowed opacity-40"
-                  : "border border-white/10 bg-white/5 hover:border-white/30"
+                    ? "border border-white/5 bg-white/2.5 cursor-not-allowed opacity-40"
+                    : "border border-white/10 bg-white/5 hover:border-white/30"
               } rounded-lg`}
             >
               {/* Symbol */}
-              <div className="size-16 flex items-center justify-center rounded bg-white/5 flex-shrink-0">
+              <div className={`${symbolSize} flex items-center justify-center rounded bg-white/5 flex-shrink-0`}>
                 {c.symbol ? (
                   <img
                     src={c.symbol}
                     alt={c.symbolName}
-                    className="size-12 object-contain transition-transform group-hover:scale-110"
+                    className={`${symbolSize} object-contain transition-transform group-hover:scale-110`}
+                    style={{ width: "80%", height: "80%" }}
                   />
                 ) : (
                     <div className="text-[8px] uppercase text-white/40">
