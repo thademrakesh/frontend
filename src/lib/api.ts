@@ -3,10 +3,10 @@ import axios from "axios";
 // Toggle between local and ngrok for testing
 const USE_LOCAL_BACKEND = true; // Set to false for ngrok
 
-//const LOCAL_API_URL = "http://localhost:8080/api/v1";
-//const NGROK_API_URL = "https://guru-anvil-anger.ngrok-free.dev/api/v1";
+const LOCAL_API_URL = "https://reluctant-persuader-coming.ngrok-free.dev/api/v1";
+const NGROK_API_URL = "https://reluctant-persuader-coming.ngrok-free.dev/api/v1";
 
-const API_BASE_URL = USE_LOCAL_BACKEND ? "https://instigative-overvaluably-rozella.ngrok-free.dev/api/v1" : "https://instigative-overvaluably-rozella.ngrok-free.dev/api/v1";
+const API_BASE_URL = USE_LOCAL_BACKEND ? LOCAL_API_URL : NGROK_API_URL;
 
 console.log("=== API CONFIG ===");
 console.log("Using backend:", API_BASE_URL);
