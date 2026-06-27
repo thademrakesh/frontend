@@ -3,8 +3,8 @@ import axios from "axios";
 // Toggle between local and ngrok for testing
 const USE_LOCAL_BACKEND = true; // Set to false for ngrok
 
-const LOCAL_API_URL = "https://41e3-103-214-62-199.ngrok-free.app/api/v1";
-const NGROK_API_URL = "https://41e3-103-214-62-199.ngrok-free.app/api/v1";
+const LOCAL_API_URL = "https://798e-103-214-62-218.ngrok-free.app/api/v1";
+const NGROK_API_URL = "https://798e-103-214-62-218.ngrok-free.app/api/v1";
 
 const API_BASE_URL = USE_LOCAL_BACKEND ? LOCAL_API_URL : NGROK_API_URL;
 
